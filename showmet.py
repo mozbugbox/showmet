@@ -22,6 +22,8 @@ CACHE_LIFE = 24 * 60 * 60
 
 APPNAME_FULL = "ShowMeT"
 APPNAME = APPNAME_FULL.lower()
+APPID = "{}.{}.{}".format("org", "mozbugbox", APPNAME )
+
 CACHE_NAME = "{}-list.js".format(APPNAME)
 import platform
 if platform.system() == "Windows":
@@ -285,7 +287,7 @@ class AppWindow(Gtk.ApplicationWindow):
 class Application(Gtk.Application):
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, application_id="org.mozbugbox.showmet",
+        super().__init__(*args, application_id=APPID,
                          flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
                          **kwargs)
         self.window = None
