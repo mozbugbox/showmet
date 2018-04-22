@@ -32,10 +32,12 @@ COL_CH_NAME, COL_CH_URL = range(2)
 GMARGIN = 2
 NATIVE=sys.getfilesystemencoding()
 
-def _create_icon_image(icon_name):
+def _create_icon_image(icon_name, size=None):
     """Create Gtk image with stock icon"""
+    if size is None:
+        size = Gtk.IconSize.BUTTON
     icon = Gio.ThemedIcon(name=icon_name)
-    image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
+    image = Gtk.Image.new_from_gicon(icon, size)
     return image
 
 def _create_icon_button(icon_name=None, tooltip=None, action=None,
@@ -121,6 +123,11 @@ class AppWindow(Gtk.ApplicationWindow):
 
     def setup_ui(self):
         self.resize(900, 800)
+        theme = Gtk.IconTheme.get_default()
+        logo_pixbuf = theme.load_icon("video-x-generic", 48, 0)
+        self.set_icon(logo_pixbuf)
+
+
         grid = Gtk.Grid()
         self.add(grid)
 
