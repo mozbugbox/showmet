@@ -8,7 +8,6 @@ import io
 import logging
 import pathlib
 import threading
-import datetime
 import time
 
 import gi
@@ -95,6 +94,16 @@ class Logger(Gtk.ScrolledWindow):
         iter_end = tbuf.get_end_iter()
         tv.scroll_to_iter(iter_end, 0.0, True, 0.0, 1.0)
         return False
+
+def sec2str(seconds):
+    h, s = divmod(seconds, 3600)
+    m, s = divmod(s, 60)
+    res = []
+    if int(h) > 0:
+        res.append("{:02d}".format(int(h)))
+    res.append("{:02d}".format(int(m)))
+    res.append("{:05.2f}".format(s))
+    return ":".join(res)
 
 class AppWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
@@ -209,7 +218,7 @@ class AppWindow(Gtk.ApplicationWindow):
             path = self.cache_path
             mtime = path.stat().st_mtime
             delta = time.time() - mtime
-            log.debug("Cache life: {:.2f}m".format(delta/60))
+            log.debug("Cache life: {}".format(sec2str(delta)))
             if (delta) >= CACHE_LIFE:
                 do_update = True
         else:
