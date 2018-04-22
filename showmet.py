@@ -20,7 +20,8 @@ __version__ = "0.1"
 
 CACHE_LIFE = 24 * 60 * 60
 
-APPNAME = "showmet"
+APPNAME_FULL = "ShowMeT"
+APPNAME = APPNAME_FULL.lower()
 CACHE_NAME = "{}-list.js".format(APPNAME)
 import platform
 if platform.system() == "Windows":
@@ -116,6 +117,7 @@ class AppWindow(Gtk.ApplicationWindow):
         self.defer(self.load_rest)
 
     def load_rest(self):
+        """delay load"""
         self.load_channels()
         self.player = videoplayer.VideoPlayer(self)
         self.player.start_proc_monitor()
@@ -241,6 +243,7 @@ class AppWindow(Gtk.ApplicationWindow):
             self.update_live_channel()
 
     def update_live_channel(self):
+        """Load channel from URL"""
         def _fetch_channel():
             time.sleep(.01)
             import requests
@@ -262,14 +265,14 @@ class AppWindow(Gtk.ApplicationWindow):
                 import json
                 content = content[idx+len(tag):].strip(";")
                 channel_list = json.loads(content)
-                self.load_channel_list(channel_list)
+                self.fill_channel_tree(channel_list)
             except ValueError as e:
                 log.warn("{}".format(e))
                 import traceback
                 log.debug("{}".format(traceback.format_exc()))
                 #raise
 
-    def load_channel_list(self, channel_list):
+    def fill_channel_tree(self, channel_list):
         model = self.tree_channel.get_model()
         model.clear()
         for cid, src in channel_list:
@@ -291,6 +294,7 @@ class Application(Gtk.Application):
                              GLib.OptionArg.NONE, "Debug mode", None)
 
     def do_startup(self):
+        GLib.set_application_name(APPNAME_FULL)
         Gtk.Application.do_startup(self)
 
         action = Gio.SimpleAction.new("player_stop", None)
