@@ -19,12 +19,14 @@ import videoplayer
 __version__ = "0.1"
 
 CACHE_LIFE = 24 * 60 * 60
-CACHE_NAME = "showmet-list.js"
+
+APPNAME = "showmet"
+CACHE_NAME = "{}-list.js".format(APPNAME)
 import platform
 if platform.system() == "Windows":
-    CACHE_PATH = pathlib.Path(os.getenv("LOCALAPPDATA")) / CACHE_NAME
+    CACHE_PATH = pathlib.Path(os.getenv("LOCALAPPDATA"))/APPNAME/CACHE_NAME
 else:
-    CACHE_PATH = pathlib.Path.home() /".cache"/"showmet"/ CACHE_NAME
+    CACHE_PATH = pathlib.Path.home()/".cache"/APPNAME/CACHE_NAME
 
 LIVE_CHANNEL_URL = "https://raw.githubusercontent.com/mozbugbox/showmet/master/showmet-list.js"
 
@@ -272,6 +274,7 @@ class AppWindow(Gtk.ApplicationWindow):
         model.clear()
         for cid, src in channel_list:
             model.append([cid, src])
+        self.tree_channel.set_cursor("0", None, False)
 
     def player_stop(self):
         self.player.stop()
