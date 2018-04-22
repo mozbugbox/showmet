@@ -125,7 +125,7 @@ class AppWindow(Gtk.ApplicationWindow):
         self.resize(900, 800)
         theme = Gtk.IconTheme.get_default()
         logo_pixbuf = theme.load_icon("video-x-generic", 48, 0)
-        self.set_icon(logo_pixbuf)
+        self.set_default_icon(logo_pixbuf)
 
 
         grid = Gtk.Grid()
