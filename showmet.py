@@ -95,7 +95,9 @@ class AppWindow(Gtk.ApplicationWindow):
         if self.cache_path.exists():
             path = self.cache_path
             mtime = path.stat().st_mtime
-            if (time.time() - mtime) >= CACHE_LIFE:
+            delta = time.time() - mtime
+            log.debug("Cache life: {:.2f}m".format(delta/60))
+            if (delta) >= CACHE_LIFE:
                 do_update = True
         else:
             path = pathlib.Path(sys.argv[0]).absolute().with_name(CACHE_NAME)
@@ -122,7 +124,6 @@ class AppWindow(Gtk.ApplicationWindow):
         t.start()
 
     def load_channels_from_file(self, fname):
-        print(fname)
         with io.open(fname) as fh:
             content = fh.read().strip()
             try:
