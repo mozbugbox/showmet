@@ -17,7 +17,7 @@ from gi.repository import Gtk, GLib, Gio
 
 import videoplayer
 
-NATIVE=sys.getfilesystemencoding()
+__version__ = "0.1"
 
 CACHE_LIFE = 24 * 60 * 60
 CACHE_NAME = "showmet-list.js"
@@ -30,6 +30,71 @@ else:
 LIVE_CHANNEL_URL = "https://raw.githubusercontent.com/mozbugbox/showmet/master/showmet-list.js"
 
 COL_CH_NAME, COL_CH_URL = range(2)
+GMARGIN = 2
+NATIVE=sys.getfilesystemencoding()
+
+def _create_icon_image(icon_name):
+    """Create Gtk image with stock icon"""
+    icon = Gio.ThemedIcon(name=icon_name)
+    image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
+    return image
+
+def _create_icon_button(icon_name=None, tooltip=None, action=None,
+        clicked=None):
+    """Create Gtk button with stock icon"""
+    bt = Gtk.Button()
+    bt.props.can_focus = False
+    if icon_name is not None:
+        if isinstance(icon_name, Gtk.Image):
+            image = icon_name
+        else:
+            image = _create_icon_image(icon_name)
+        bt.set_image(image)
+    if tooltip is not None:
+        bt.props.tooltip_text = tooltip
+    if action is not None:
+        bt.props.action_name = action
+    if clicked is not None:
+        bt.connect("clicked", clicked)
+    return bt
+
+class Logger(Gtk.ScrolledWindow):
+    def __init__(self, maxlen=64):
+        """Logging Widget with a maxlen of line"""
+        self.maxlen = maxlen
+
+        Gtk.ScrolledWindow.__init__(self)
+        self._textview = Gtk.TextView()
+        self._textview.props.editable = False
+        self._textview.props.can_focus = False
+        self.add(self._textview)
+
+        # need to get new size before we can scroll to the end.
+        self._textview.connect("size-allocate", self._autoscroll)
+
+    def log(self, text):
+        """Add text to the log widget"""
+        tbuf = self._textview.get_buffer()
+        timestamp = time.strftime("%H:%M:%S")
+        line = "[{}] {}".format(timestamp, text)
+
+        # limit textbuffer size to maxlen
+        line_count = tbuf.get_line_count()
+        if  line_count >= self.maxlen:
+            iter_start = tbuf.get_start_iter()
+            iter_cut = tbuf.get_iter_at_line(line_count - self.maxlen + 1)
+            tbuf.delete(iter_start, iter_cut)
+        iter_end = tbuf.get_end_iter()
+        tbuf.insert(iter_end, line + "\n")
+
+    def _autoscroll(self, *args):
+        """The actual scrolling method"""
+        tv = self._textview
+        tv.queue_draw()
+        tbuf = tv.get_buffer()
+        iter_end = tbuf.get_end_iter()
+        tv.scroll_to_iter(iter_end, 0.0, True, 0.0, 1.0)
+        return False
 
 class AppWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
@@ -46,12 +111,12 @@ class AppWindow(Gtk.ApplicationWindow):
         GLib.idle_add(*args, **kwargs)
 
     def setup_ui(self):
-        self.resize(200, 800)
-        grid = self.grid_main = Gtk.Grid()
+        self.resize(900, 800)
+        grid = Gtk.Grid()
         self.add(grid)
 
         store = Gtk.ListStore(str, str)
-        self.tree_channel = tree = Gtk.TreeView(store)
+        tree = Gtk.TreeView(store)
         sw_channel = Gtk.ScrolledWindow()
         sw_channel.add(tree)
         sw_channel.props.expand = True
@@ -67,9 +132,57 @@ class AppWindow(Gtk.ApplicationWindow):
         select.connect("changed", self.on_tree_selection_changed)
         """
 
+        logger = Logger()
+        logger.props.can_focus = False
+        logger.props.margin = GMARGIN
 
-        grid.attach(sw_channel, 0, 0, 1, 1)
+        paned1 = Gtk.HPaned()
+        paned1.props.position = 160
+        paned1.add1(sw_channel)
+        paned1.add2(logger)
+        grid.attach(paned1, 0, 0, 1, 1)
         grid.show_all()
+
+        hb = self.setup_header_bar()
+        self.set_titlebar(hb)
+        self.load_accels()
+
+        self.tree_channel = tree
+        self.paned1 = paned1
+        self.logger = logger
+
+    def setup_header_bar(self):
+        hb = Gtk.HeaderBar()
+        hb.props.show_close_button = True
+        hb.props.title = "ShowMeT"
+        hb.props.has_subtitle = False
+
+        button_player_stop = _create_icon_button(
+                "media-playback-stop-symbolic", "Player Stop <Ctrl+s>",
+                action="app.player_stop")
+        button_about = _create_icon_button("help-about",
+                "About", action="app.about")
+
+        hb.pack_start(button_player_stop)
+        hb.pack_end(button_about)
+        hb.show_all()
+        return hb
+
+    def load_accels(self):
+        """Load shortcut/hotkeys"""
+        accel_maps = [
+                ["app.player_stop", ["<Control>s"]],
+                ["app.help", ["F1"]],
+                ["app.quit", ["<Control>q"]],
+            ]
+
+        gapp = self.get_application()
+        for act, k in accel_maps:
+            gapp.set_accels_for_action(act, k)
+
+    def log(self, msg):
+        """Log a message to the log window"""
+        self.logger.log(msg)
 
     def on_tree_selection_changed(self, sel):
         model, treeiter = sel.get_selected()
@@ -145,6 +258,8 @@ class AppWindow(Gtk.ApplicationWindow):
         for cid, src in channel_list:
             model.append([cid, src])
 
+    def player_stop(self):
+        self.player.stop()
 
 class Application(Gtk.Application):
 
@@ -159,6 +274,10 @@ class Application(Gtk.Application):
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
+
+        action = Gio.SimpleAction.new("player_stop", None)
+        action.connect("activate", self.on_player_stop)
+        self.add_action(action)
 
         action = Gio.SimpleAction.new("about", None)
         action.connect("activate", self.on_about)
@@ -191,8 +310,23 @@ class Application(Gtk.Application):
         return 0
 
     def on_about(self, action, param):
-        about_dialog = Gtk.AboutDialog(transient_for=self.window, modal=True)
-        about_dialog.present()
+        dlg = Gtk.AboutDialog(transient_for=self.window, modal=True)
+        dlg.props.version = __version__
+        dlg.props.authors = ["mozbugbox"]
+        dlg.props.comments = "Play media playlist with mpv player"
+        dlg.props.license_type = Gtk.License.GPL_3_0
+        dlg.props.copyright = (
+            "Copyright 2014-2018 mozbugbox <mozbugbox@yahoo.com.au>"
+            )
+
+        def _on_response(d, resp):
+            d.destroy()
+        dlg.connect("response", _on_response)
+
+        dlg.present()
+
+    def on_player_stop(self, action, param):
+        self.window.player_stop()
 
     def on_quit(self, action, param):
         self.quit()
