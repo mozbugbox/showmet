@@ -19,6 +19,12 @@ NATIVE=sys.getfilesystemencoding()
 #YOUTUBE_FORMAT = "96/95/94/best"
 YOUTUBE_FORMAT = "95/94/96/best"
 
+import platform
+if platform.system == "Windows":
+    PLAYER_BINS = ["mpv.exe"]
+else:
+    PLAYER_BINS = ["mpv"]
+
 def get_bin_path(bin_name):
     """Find the full path of command
     @bin_name: a executable string or a list of executables
@@ -70,7 +76,7 @@ rsession = setup_request_session()
 
 class VideoPlayer:
     """Video Player Class"""
-    bin_list = ["mpv", "mplayer"]
+    bin_list = PLAYER_BINS
     def __init__(self, app=None):
         self.app = app
         self.player = get_bin_path(self.bin_list)
