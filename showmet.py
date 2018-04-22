@@ -27,7 +27,7 @@ if platform.system() == "Windows":
 else:
     CACHE_PATH = pathlib.Path.home() /".cache"/"showmet"/ CACHE_NAME
 
-LIVE_CHANNEL_URL = ""
+LIVE_CHANNEL_URL = "https://raw.githubusercontent.com/mozbugbox/showmet/master/showmet-list.js"
 
 COL_CH_NAME, COL_CH_URL = range(2)
 
@@ -113,15 +113,16 @@ class AppWindow(Gtk.ApplicationWindow):
             time.sleep(.01)
             import requests
             req = requests.get(LIVE_CHANNEL_URL, timeout=30)
-            if req.content:
+            if req.text:
                 with io.open(self.cache_path, "w") as fhw:
-                    fhw.write(req.content)
+                    fhw.write(req.text)
                 self.defer(self.load_channels_from_file, self.cache_path)
         t = threading.Thread(target=_fetch_channel)
         t.daemon = True
         t.start()
 
     def load_channels_from_file(self, fname):
+        print(fname)
         with io.open(fname) as fh:
             content = fh.read().strip()
             try:
