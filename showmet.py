@@ -307,21 +307,11 @@ class Application(Gtk.Application):
         GLib.set_application_name(APPNAME_FULL)
         Gtk.Application.do_startup(self)
 
-        action = Gio.SimpleAction.new("player_stop", None)
-        action.connect("activate", self.on_player_stop)
-        self.add_action(action)
-
-        action = Gio.SimpleAction.new("refresh_channel", None)
-        action.connect("activate", self.on_refresh_channel)
-        self.add_action(action)
-
-        action = Gio.SimpleAction.new("about", None)
-        action.connect("activate", self.on_about)
-        self.add_action(action)
-
-        action = Gio.SimpleAction.new("quit", None)
-        action.connect("activate", self.on_quit)
-        self.add_action(action)
+        actions = ["player_stop", "refresh_channel", "about", "quit"]
+        for a_name in actions:
+            action = Gio.SimpleAction.new(a_name, None)
+            action.connect("activate", getattr(self, f"on_{a_name}"))
+            self.add_action(action)
 
         #builder = Gtk.Builder.new_from_string(MENU_XML, -1)
         #self.set_app_menu(builder.get_object("app-menu"))
