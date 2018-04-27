@@ -124,6 +124,7 @@ class VideoPlayer:
             if proc.returncode is not None:
                 self.log('({}) Stopped "{}" [{}]'.format(
                     proc.pid, title, proc.returncode))
+                self.ttys.restore()
             else:
                 running.append((title, proc))
         self.proc_list = running

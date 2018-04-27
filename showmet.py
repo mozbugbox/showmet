@@ -9,6 +9,7 @@ import logging
 import pathlib
 import threading
 import time
+import collections
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -21,10 +22,10 @@ __version__ = "0.1"
 APPNAME_FULL = "ShowMeT"
 APPNAME = APPNAME_FULL.lower()
 APPID = "{}.{}.{}".format("org", "mozbugbox", APPNAME )
+
+NATIVE=sys.getfilesystemencoding()
 CACHE_NAME = "{}-list.js".format(APPNAME)
-
 CACHE_LIFE = 24 * 60 * 60
-
 import platform
 if platform.system() == "Windows":
     CACHE_PATH = pathlib.Path(os.getenv("LOCALAPPDATA"))/APPNAME/CACHE_NAME
@@ -33,9 +34,8 @@ else:
 
 LIVE_CHANNEL_URL = "https://raw.githubusercontent.com/mozbugbox/showmet/master/showmet-list.js"
 
-COL_CH_NAME, COL_CH_URL = range(2)
 GMARGIN = 2
-NATIVE=sys.getfilesystemencoding()
+COL_CH_NAME, COL_CH_URL = range(2)
 
 def _create_icon_image(icon_name, size=None):
     """Create Gtk image with stock icon"""
@@ -112,9 +112,36 @@ def sec2str(seconds):
     res.append("{:05.2f}".format(s))
     return ":".join(res)
 
+class ChannelURLs(list):
+    """Hold a list of alternative urls for a channel"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._index = 0
+
+    @property
+    def url(self):
+        return self[self._index]
+
+    @property
+    def index(self):
+        return self._index
+
+    def next(self):
+        self._index += 1
+        if self._index >= len(self):
+            self._index = 0
+        return self.url
+
+    def __getitem__(self, key):
+        v = super().__getitem__(key)
+        self._index = key
+        return v
+
 class AppWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.current_channel_name = None
+        self.channels = collections.defaultdict(ChannelURLs)
         self.setup_ui()
         self.defer(self.load_rest)
 
@@ -135,7 +162,7 @@ class AppWindow(Gtk.ApplicationWindow):
 
         grid = Gtk.Grid()
 
-        store = Gtk.ListStore(str, str)
+        store = Gtk.ListStore(str)
         tree = Gtk.TreeView(store)
         sw_channel = Gtk.ScrolledWindow()
         sw_channel.add(tree)
@@ -186,17 +213,25 @@ class AppWindow(Gtk.ApplicationWindow):
                 action="app.refresh_channel")
         button_about = _create_icon_button("help-about",
                 "About", action="app.about")
+        cbox_source = Gtk.ComboBoxText()
+        cbox_source.props.tooltip_text = "Switch Source <Ctrl+n>"
+        hid = cbox_source.connect("changed",
+                self.on_combobox_source_changed)
+        cbox_source.changed_hid = hid
 
         hb.pack_start(button_refresh_channel)
         hb.pack_start(button_player_stop)
+        hb.pack_start(cbox_source)
         hb.pack_end(button_about)
         hb.show_all()
+        self.combobox_source = cbox_source
         return hb
 
     def load_accels(self):
         """Load shortcut/hotkeys"""
         accel_maps = [
                 ["app.player_stop", ["<Control>s"]],
+                ["app.play_next_source", ["<Control>n"]],
                 ["app.refresh_channel", ["<Control>r"]],
                 ["app.help", ["F1"]],
                 ["app.quit", ["<Control>q"]],
@@ -216,13 +251,43 @@ class AppWindow(Gtk.ApplicationWindow):
             chan_id, chan_src = model[treeiter]
             self.player.play_url(chan_src, chan_id)
 
+    def on_combobox_source_changed(self, cbox):
+        idx = cbox.get_active()
+        current_idx = self.channels[self.current_channel_name].index
+        if idx != current_idx:
+            self.play_nth_source(idx)
+
     def on_tree_row_activated(self, tree, path, col):
+        if path is None:
+            return
+
         model = tree.get_model()
-        if path is not None:
-            row = model[path]
-            chan_src = row[COL_CH_URL]
-            chan_id = row[COL_CH_NAME]
-            self.player.play_url(chan_src, chan_id)
+        row = model[path]
+        chan_id = row[COL_CH_NAME]
+        self.current_channel_name = chan_id
+
+        ch = self.channels[chan_id]
+        cbox = self.combobox_source
+        cbox.handler_block(cbox.changed_hid)
+        cbox.remove_all()
+        for i in range(len(ch)):
+            cbox.append(None, str(i+1))
+        cbox.handler_unblock(cbox.changed_hid)
+
+        self.play_channel(chan_id)
+
+    def play_channel(self, name, idx=None):
+        try:
+            ch = self.channels[name]
+            chan_url = ch.url if idx is None else ch[idx]
+            self.player.play_url(chan_url, name)
+
+            cbox = self.combobox_source
+            cbox.handler_block(cbox.changed_hid)
+            cbox.set_active(ch.index)
+            cbox.handler_unblock(cbox.changed_hid)
+        except KeyError:
+            pass
 
     @property
     def cache_path(self):
@@ -274,7 +339,14 @@ class AppWindow(Gtk.ApplicationWindow):
                 import json
                 content = content[idx+len(tag):].strip(";")
                 channel_list = json.loads(content)
-                self.fill_channel_tree(channel_list)
+                self.channels.clear()
+                channel_names = collections.OrderedDict()
+                for k, v in channel_list:
+                    k = k.strip()
+                    self.channels[k].append(v.strip())
+                    channel_names[k] = 1
+
+                self.fill_channel_tree(channel_names.keys())
                 self.log("Loaded channels from {}".format(fname))
             except ValueError as e:
                 log.warn("{}".format(e))
@@ -282,15 +354,15 @@ class AppWindow(Gtk.ApplicationWindow):
                 log.debug("{}".format(traceback.format_exc()))
                 #raise
 
-    def fill_channel_tree(self, channel_list):
+    def fill_channel_tree(self, channel_names):
         model = self.tree_channel.get_model()
         path, col = self.tree_channel.get_cursor()
         if path:
             chname = model[path][COL_CH_NAME]
 
         model.clear()
-        for cid, src in channel_list:
-            model.append([cid, src])
+        for cid in channel_names:
+            model.append([cid,])
 
         # reset cursor
         if path and chname == model[path][COL_CH_NAME]:
@@ -300,6 +372,18 @@ class AppWindow(Gtk.ApplicationWindow):
 
     def player_stop(self):
         self.player.stop()
+
+    def play_next_source(self):
+        ch = self.channels[self.current_channel_name]
+        try:
+            if ch.url != ch.next():
+                self.play_channel(self.current_channel_name)
+        except IndexError:
+            pass
+
+    def play_nth_source(self, nth):
+        ch = self.channels[self.current_channel_name]
+        self.play_channel(self.current_channel_name, nth)
 
 class Application(Gtk.Application):
 
@@ -316,7 +400,8 @@ class Application(Gtk.Application):
         GLib.set_application_name(APPNAME_FULL)
         Gtk.Application.do_startup(self)
 
-        actions = ["player_stop", "refresh_channel", "about", "quit"]
+        actions = ["player_stop", "play_next_source", "refresh_channel",
+                "about", "quit"]
         for a_name in actions:
             action = Gio.SimpleAction.new(a_name, None)
             action.connect("activate", getattr(self, f"on_{a_name}"))
@@ -362,6 +447,9 @@ class Application(Gtk.Application):
 
     def on_player_stop(self, action, param):
         self.window.player_stop()
+
+    def on_play_next_source(self, action, param):
+        self.window.play_next_source()
 
     def on_refresh_channel(self, action, param):
         self.window.update_live_channel()
