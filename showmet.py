@@ -181,9 +181,13 @@ class AppWindow(Gtk.ApplicationWindow):
         button_player_stop = _create_icon_button(
                 "media-playback-stop-symbolic", "Player Stop <Ctrl+s>",
                 action="app.player_stop")
+        button_refresh_channel = _create_icon_button(
+                "view-refresh-symbolic", "Refresh Channel <Ctrl+r>",
+                action="app.refresh_channel")
         button_about = _create_icon_button("help-about",
                 "About", action="app.about")
 
+        hb.pack_start(button_refresh_channel)
         hb.pack_start(button_player_stop)
         hb.pack_end(button_about)
         hb.show_all()
@@ -193,6 +197,7 @@ class AppWindow(Gtk.ApplicationWindow):
         """Load shortcut/hotkeys"""
         accel_maps = [
                 ["app.player_stop", ["<Control>s"]],
+                ["app.refresh_channel", ["<Control>r"]],
                 ["app.help", ["F1"]],
                 ["app.quit", ["<Control>q"]],
             ]
@@ -249,7 +254,9 @@ class AppWindow(Gtk.ApplicationWindow):
         def _fetch_channel():
             time.sleep(.01)
             import requests
-            req = requests.get(LIVE_CHANNEL_URL, timeout=30)
+            url = LIVE_CHANNEL_URL
+            self.log("Update Channel from {}...".format(url))
+            req = requests.get(url, timeout=30)
             if req.text:
                 with io.open(self.cache_path, "w", encoding="UTF-8") as fhw:
                     fhw.write(req.text)
@@ -268,6 +275,7 @@ class AppWindow(Gtk.ApplicationWindow):
                 content = content[idx+len(tag):].strip(";")
                 channel_list = json.loads(content)
                 self.fill_channel_tree(channel_list)
+                self.log("Loaded channels from {}".format(fname))
             except ValueError as e:
                 log.warn("{}".format(e))
                 import traceback
@@ -301,6 +309,10 @@ class Application(Gtk.Application):
 
         action = Gio.SimpleAction.new("player_stop", None)
         action.connect("activate", self.on_player_stop)
+        self.add_action(action)
+
+        action = Gio.SimpleAction.new("refresh_channel", None)
+        action.connect("activate", self.on_refresh_channel)
         self.add_action(action)
 
         action = Gio.SimpleAction.new("about", None)
@@ -351,6 +363,9 @@ class Application(Gtk.Application):
 
     def on_player_stop(self, action, param):
         self.window.player_stop()
+
+    def on_refresh_channel(self, action, param):
+        self.window.update_live_channel()
 
     def on_quit(self, action, param):
         self.quit()
