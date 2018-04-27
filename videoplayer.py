@@ -8,7 +8,6 @@ import io
 import time
 import requests
 import subprocess
-import termios
 import logging as log
 from gi.repository import GLib
 
@@ -20,16 +19,21 @@ NATIVE=sys.getfilesystemencoding()
 YOUTUBE_FORMAT = "95/94/96/best"
 
 import platform
-if platform.system == "Windows":
+if platform.system() == "Windows":
+    IS_WIN = True
+    PATH_SEP = ";"
     PLAYER_BINS = ["mpv.exe"]
 else:
+    IS_WIN = False
+    import termios
+    PATH_SEP = ":"
     PLAYER_BINS = ["mpv"]
 
 def get_bin_path(bin_name):
     """Find the full path of command
     @bin_name: a executable string or a list of executables
     """
-    pathes = os.environ["PATH"].split(":")
+    pathes = os.environ["PATH"].split(PATH_SEP)
 
     src_dir = os.path.dirname(__file__)
     pathes.extend([src_dir, os.path.join(src_dir, 'bin')])
@@ -50,6 +54,7 @@ class TTYStat:
         self.tty_stat = self.save()
 
     def save(self):
+        if IS_WIN: return
         stat = None
         if sys.stdin.isatty():
             fd = sys.stdin.fileno()
@@ -57,6 +62,7 @@ class TTYStat:
         return stat
 
     def restore(self, stat=None):
+        if IS_WIN: return
         if stat is None:
             stat = self.tty_stat
 
