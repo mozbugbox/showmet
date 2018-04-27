@@ -42,7 +42,7 @@ def main():
     separation = list("|,，;；")
     fname = sys.argv[1]
     result = []
-    with io.open(fname) as fh:
+    with io.open(fname, encoding="UTF-8") as fh:
         lines = fh.readlines()
 
     for line in lines:
@@ -56,7 +56,7 @@ def main():
     if len(result) > 0:
         outpath = pathlib.Path(fname).with_suffix(".js")
         print("Write result to {}".format(outpath))
-        with io.open(outpath, "w") as fhw:
+        with io.open(outpath, "w", encoding="UTF-8") as fhw:
             fhw.write("watchlist_data = ")
             fhw.write(json.dumps(result, indent=2, ensure_ascii=False))
             fhw.write(";")

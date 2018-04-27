@@ -251,7 +251,7 @@ class AppWindow(Gtk.ApplicationWindow):
             import requests
             req = requests.get(LIVE_CHANNEL_URL, timeout=30)
             if req.text:
-                with io.open(self.cache_path, "w") as fhw:
+                with io.open(self.cache_path, "w", encoding="UTF-8") as fhw:
                     fhw.write(req.text)
                 self.defer(self.load_channels_from_file, self.cache_path)
         t = threading.Thread(target=_fetch_channel)
@@ -259,7 +259,7 @@ class AppWindow(Gtk.ApplicationWindow):
         t.start()
 
     def load_channels_from_file(self, fname):
-        with io.open(fname) as fh:
+        with io.open(fname, encoding="UTF-8") as fh:
             content = fh.read().strip()
             try:
                 tag = " = "
