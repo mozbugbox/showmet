@@ -18,13 +18,13 @@ import videoplayer
 
 __version__ = "0.1"
 
-CACHE_LIFE = 24 * 60 * 60
-
 APPNAME_FULL = "ShowMeT"
 APPNAME = APPNAME_FULL.lower()
 APPID = "{}.{}.{}".format("org", "mozbugbox", APPNAME )
-
 CACHE_NAME = "{}-list.js".format(APPNAME)
+
+CACHE_LIFE = 24 * 60 * 60
+
 import platform
 if platform.system() == "Windows":
     CACHE_PATH = pathlib.Path(os.getenv("LOCALAPPDATA"))/APPNAME/CACHE_NAME
@@ -134,7 +134,6 @@ class AppWindow(Gtk.ApplicationWindow):
         self.set_default_icon(logo_pixbuf)
 
         grid = Gtk.Grid()
-        self.add(grid)
 
         store = Gtk.ListStore(str, str)
         tree = Gtk.TreeView(store)
@@ -163,6 +162,7 @@ class AppWindow(Gtk.ApplicationWindow):
         paned1.add2(logger)
         grid.attach(paned1, 0, 0, 1, 1)
         grid.show_all()
+        self.add(grid)
 
         hb = self.setup_header_bar()
         self.set_titlebar(hb)
