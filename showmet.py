@@ -214,7 +214,7 @@ class AppWindow(Gtk.ApplicationWindow):
         button_about = _create_icon_button("help-about",
                 "About", action="app.about")
         cbox_source = Gtk.ComboBoxText()
-        cbox_source.props.tooltip_text = "Switch Source <Ctrl+n>"
+        cbox_source.props.tooltip_text = "Switch Source <\u2192>"
         hid = cbox_source.connect("changed",
                 self.on_combobox_source_changed)
         cbox_source.changed_hid = hid
@@ -231,7 +231,7 @@ class AppWindow(Gtk.ApplicationWindow):
         """Load shortcut/hotkeys"""
         accel_maps = [
                 ["app.player_stop", ["<Control>s"]],
-                ["app.play_next_source", ["<Control>n"]],
+                ["app.play_next_source", ["Right"]],
                 ["app.refresh_channel", ["<Control>r"]],
                 ["app.help", ["F1"]],
                 ["app.quit", ["<Control>q"]],
