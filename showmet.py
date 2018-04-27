@@ -284,10 +284,19 @@ class AppWindow(Gtk.ApplicationWindow):
 
     def fill_channel_tree(self, channel_list):
         model = self.tree_channel.get_model()
+        path, col = self.tree_channel.get_cursor()
+        if path:
+            chname = model[path][COL_CH_NAME]
+
         model.clear()
         for cid, src in channel_list:
             model.append([cid, src])
-        self.tree_channel.set_cursor("0", None, False)
+
+        # reset cursor
+        if path and chname == model[path][COL_CH_NAME]:
+            self.tree_channel.set_cursor(path, None, False)
+        else:
+            self.tree_channel.set_cursor("0", None, False)
 
     def player_stop(self):
         self.player.stop()
