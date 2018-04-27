@@ -385,6 +385,9 @@ class AppWindow(Gtk.ApplicationWindow):
         ch = self.channels[self.current_channel_name]
         self.play_channel(self.current_channel_name, nth)
 
+    def close(self):
+        self.player.ttys.restore()
+
 class Application(Gtk.Application):
 
     def __init__(self, *args, **kwargs):
@@ -455,6 +458,7 @@ class Application(Gtk.Application):
         self.window.update_live_channel()
 
     def on_quit(self, action, param):
+        self.window.close()
         self.quit()
 
 def setup_log(log_level=None):
