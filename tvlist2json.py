@@ -11,6 +11,20 @@ import json
 
 NATIVE=sys.getfilesystemencoding()
 
+def parse_tvlist(lines):
+    result = []
+    separation = list("|,，;；")
+    for line in lines:
+        if line.startswith("#"): continue
+        line = line.strip()
+        for sep in separation:
+            cid, s, src = line.partition(sep)
+            if s: break
+        if s:
+            result.append([cid.strip(), src.strip()])
+
+    return result
+
 def setup_log(log_level=None):
     global log
     rlog = logging.getLogger()
@@ -39,23 +53,15 @@ def main():
     log_level = logging.INFO
     setup_log(log_level)
 
-    separation = list("|,，;；")
     fname = sys.argv[1]
-    result = []
     with io.open(fname, encoding="UTF-8") as fh:
         lines = fh.readlines()
 
-    for line in lines:
-        if line.startswith("#"): continue
-        line = line.strip()
-        for sep in separation:
-            cid, s, src = line.partition(sep)
-            if s: break
-        if s:
-            result.append([cid.strip(), src.strip()])
+    result = parse_tvlist(lines)
+
     if len(result) > 0:
         outpath = pathlib.Path(fname).with_suffix(".js")
-        print("Write result to {}".format(outpath))
+        log.info("Write result to {}".format(outpath))
         with io.open(outpath, "w", encoding="UTF-8") as fhw:
             fhw.write("watchlist_data = ")
             fhw.write(json.dumps(result, indent=2, ensure_ascii=False))
