@@ -112,8 +112,8 @@ def sec2str(seconds):
     res.append("{:05.2f}".format(s))
     return ":".join(res)
 
-class ChannelURLs(list):
-    """Hold a list of alternative urls for a channel"""
+class ChannelURLs(collections.OrderedDict):
+    """Hold a list of unique urls for a channel"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._index = 0
@@ -133,9 +133,14 @@ class ChannelURLs(list):
         return self.url
 
     def __getitem__(self, key):
-        v = super().__getitem__(key)
+        if not isinstance(key, int):
+            raise ValueError("key need to be int")
+        v = list(self.keys())[self._index]
         self._index = key
         return v
+
+    def append(self, val):
+        super().__setitem__(val, 1)
 
 class AppWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
