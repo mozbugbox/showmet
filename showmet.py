@@ -27,12 +27,18 @@ APPID = "{}.{}.{}".format("org", "mozbugbox", APPNAME )
 
 NATIVE=sys.getfilesystemencoding()
 CACHE_NAME = "{}-list.js".format(APPNAME)
+USER_CHAN_NAME = "{}-user-list.tvlist".format(APPNAME)
 CACHE_LIFE = 24 * 60 * 60
+
 import platform
 if platform.system() == "Windows":
-    CACHE_PATH = pathlib.Path(os.getenv("LOCALAPPDATA"))/APPNAME/CACHE_NAME
+    APPDATA_PATH = pathlib.Path(os.getenv("LOCALAPPDATA"))/APPNAME
+    CACHE_PATH = APPDATA_PATH/CACHE_NAME
+    USER_CHAN_PATH = APPDATA_PATH/USER_CHAN_NAME
 else:
-    CACHE_PATH = pathlib.Path.home()/".cache"/APPNAME/CACHE_NAME
+    HOME = pathlib.Path.home()
+    CACHE_PATH = HOME/".cache"/APPNAME/CACHE_NAME
+    USER_CHAN_PATH = HOME/".local/share"/APPNAME/USER_CHAN_NAME
 
 LIVE_CHANNEL_URL = "https://raw.githubusercontent.com/mozbugbox/showmet/master/showmet-list.js"
 
@@ -337,28 +343,60 @@ class AppWindow(Gtk.ApplicationWindow):
         t.daemon = True
         t.start()
 
+    def import_channel_list(self, channel_list):
+        """Import channel_list into self.channels and return channel_names"""
+        channel_names = collections.OrderedDict()
+        for k, v in channel_list:
+            k = k.strip()
+            self.channels[k].append(v.strip())
+            channel_names[k] = 1
+        return channel_names
+
+    def load_user_channels(self, channels):
+        # Always load user channels first
+        ch_path = USER_CHAN_PATH
+        cnames = {}
+        try:
+            with io.open(ch_path, encoding="UTF-8") as fh:
+                lines = fh.readlines()
+            import tvlist2json
+            channel_list = tvlist2json.parse_tvlist(lines)
+            cnames = self.import_channel_list(channel_list)
+            self.log("Loaded user channels from {}".format(ch_path))
+        except IOError as e:
+            log.warn("File: {}\n  {}".format(ch_path, e))
+            import traceback
+            log.debug("{}".format(traceback.format_exc()))
+            #raise
+        return cnames
+
     def load_channels_from_file(self, fname):
         json_head_re = re.compile(r"(^[^\[]*|[^\]]*$)")
-        with io.open(fname, encoding="UTF-8") as fh:
-            content = fh.read().strip()
-            try:
-                import json
-                content = json_head_re.sub("", content)
-                channel_list = json.loads(content)
-                self.channels.clear()
-                channel_names = collections.OrderedDict()
-                for k, v in channel_list:
-                    k = k.strip()
-                    self.channels[k].append(v.strip())
-                    channel_names[k] = 1
 
-                self.fill_channel_tree(channel_names.keys())
-                self.log("Loaded channels from {}".format(fname))
-            except ValueError as e:
-                log.warn("{}".format(e))
-                import traceback
-                log.debug("{}".format(traceback.format_exc()))
-                #raise
+        try:
+            with io.open(fname, encoding="UTF-8") as fh:
+                content = fh.read().strip()
+
+            self.channels.clear()
+            channel_names = collections.OrderedDict()
+
+            # Load user channel first
+            names = self.load_user_channels(self.channels)
+            channel_names.update(names)
+
+            import json
+            content = json_head_re.sub("", content)
+            channel_list = json.loads(content)
+            names = self.import_channel_list(channel_list)
+            channel_names.update(names)
+            self.log("Loaded channels from {}".format(fname))
+        except (IOError, ValueError) as e:
+            log.warn("File: {}\n  {}".format(fname, e))
+            import traceback
+            log.debug("{}".format(traceback.format_exc()))
+            #raise
+
+        self.fill_channel_tree(channel_names.keys())
 
     def fill_channel_tree(self, channel_names):
         model = self.tree_channel.get_model()
