@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 # vim:fileencoding=utf-8:sw=4:et
+"""
+Play media playlist with mpv player
+"""
 
 from __future__ import print_function, unicode_literals, absolute_import, division
 import sys
@@ -447,13 +450,7 @@ class Application(Gtk.Application):
         GLib.set_application_name(APPNAME_FULL)
         Gtk.Application.do_startup(self)
 
-        actions = ["player_stop", "play_next_source", "refresh_channel",
-                "about", "quit"]
-        for a_name in actions:
-            action = Gio.SimpleAction.new(a_name, None)
-            action.connect("activate", getattr(self, f"on_{a_name}"))
-            self.add_action(action)
-
+        self.install_actions()
         #builder = Gtk.Builder.new_from_string(MENU_XML, -1)
         #self.set_app_menu(builder.get_object("app-menu"))
 
@@ -476,19 +473,24 @@ class Application(Gtk.Application):
         self.activate()
         return 0
 
+    def install_actions(self):
+        actions = ["player_stop", "play_next_source", "refresh_channel",
+                "about", "quit"]
+        for a_name in actions:
+            action = Gio.SimpleAction.new(a_name, None)
+            action.connect("activate", getattr(self, f"on_{a_name}"))
+            self.add_action(action)
+
     def on_about(self, action, param):
         dlg = Gtk.AboutDialog(transient_for=self.window, modal=True)
         dlg.props.version = __version__
         dlg.props.authors = ["mozbugbox"]
-        dlg.props.comments = "Play media playlist with mpv player"
+        dlg.props.comments = __doc__.strip()
         dlg.props.license_type = Gtk.License.GPL_3_0
         dlg.props.copyright = (
             "Copyright 2014-2018 mozbugbox <mozbugbox@yahoo.com.au>"
             )
-
-        def _on_response(d, resp):
-            d.destroy()
-        dlg.connect("response", _on_response)
+        dlg.connect("response", lambda x, resp: x.destroy())
 
         dlg.present()
 

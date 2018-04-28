@@ -2,9 +2,10 @@
 Play list of videos from mpv with a GUI
 
 ## Depends
+* mpv
 * Python3
 * Gtk+3
-* mpv
+* Python GObject binding
 
 ## Windows/Win32
 * Install msys2: https://www.msys2.org/
@@ -14,3 +15,20 @@ Play list of videos from mpv with a GUI
 * Run `python3 showmet.py`
 
 * Hide console: https://gist.github.com/mozbugbox/03d1ee3a8c2f48c29cd7a6a65aee8e8e
+
+## Files
+
+* User defined Channels: $USERDATA/showmet/showmet-user-list.tvlist
+
+  $USERDATA:
+
+  * Windows: %LOCALAPPDATA%
+  * Linux: $HOME/.local/share
+
+  Format: `channel_name|http://host/channel.m3u8`
+
+* Channel Cache:
+
+  * Windows: %LOCALAPPDATA%/showmet/showmet-list.js
+  * Linux: $HOME/.cache/showmet/showmet-list.js
+
