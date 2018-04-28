@@ -191,7 +191,7 @@ class VideoPlayer:
             p = subprocess.Popen(cmd,
                     #stdout=subprocess.DEVNULL,
                     )
-        self.log('({}) Play "{}"'.format(p.pid, title))
+        self.log('({}) Play "{}| {}"'.format(p.pid, title, url))
         self.log(cmd_str)
         self.proc = p
         self.proc_list.append((title, p))

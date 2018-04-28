@@ -123,10 +123,11 @@ def sec2str(seconds):
     res.append("{:05.2f}".format(s))
     return ":".join(res)
 
-class ChannelURLs(collections.OrderedDict):
+class ChannelInfo(collections.OrderedDict):
     """Hold a list of unique urls for a channel"""
-    def __init__(self, *args, **kwargs):
+    def __init__(self, channel_name, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.name = channel_name
         self._index = 0
 
     @property
@@ -134,8 +135,14 @@ class ChannelURLs(collections.OrderedDict):
         return self[self._index]
 
     @property
-    def index(self):
+    def pos(self):
+        """Position of current index"""
         return self._index
+
+    def find(self, url):
+        """Find the position of the given url"""
+        res = list(keys()).find(url)
+        return res
 
     def next(self):
         self._index += 1
@@ -153,11 +160,20 @@ class ChannelURLs(collections.OrderedDict):
     def append(self, val):
         super().__setitem__(val, 1)
 
+class ChannelDict(collections.defaultdict):
+    """defaultdict calls default_factory with key"""
+    def __missing__(self, key):
+        if self.default_factory is None:
+            raise KeyError(key)
+        v = self.default_factory(key)
+        self[key] = v
+        return v
+
 class AppWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.current_channel_name = None
-        self.channels = collections.defaultdict(ChannelURLs)
+        self.current_channel = None
+        self.channels = ChannelDict(ChannelInfo)
         self.setup_ui()
         self.defer(self.load_rest)
 
@@ -269,7 +285,7 @@ class AppWindow(Gtk.ApplicationWindow):
 
     def on_combobox_source_changed(self, cbox):
         idx = cbox.get_active()
-        current_idx = self.channels[self.current_channel_name].index
+        current_idx = self.current_channel.pos
         if idx != current_idx:
             self.play_nth_source(idx)
 
@@ -280,9 +296,9 @@ class AppWindow(Gtk.ApplicationWindow):
         model = tree.get_model()
         row = model[path]
         chan_id = row[COL_CH_NAME]
-        self.current_channel_name = chan_id
-
         ch = self.channels[chan_id]
+        self.current_channel = ch
+
         cbox = self.combobox_source
         cbox.handler_block(cbox.changed_hid)
         cbox.remove_all()
@@ -290,17 +306,17 @@ class AppWindow(Gtk.ApplicationWindow):
             cbox.append(None, str(i+1))
         cbox.handler_unblock(cbox.changed_hid)
 
-        self.play_channel(chan_id)
+        self.play_channel(ch)
 
-    def play_channel(self, name, idx=None):
+    def play_channel(self, ch, idx=None):
+        """@ch: a ChannelInfo"""
         try:
-            ch = self.channels[name]
             chan_url = ch.url if idx is None else ch[idx]
-            self.player.play_url(chan_url, name)
+            self.player.play_url(chan_url, ch.name)
 
             cbox = self.combobox_source
             cbox.handler_block(cbox.changed_hid)
-            cbox.set_active(ch.index)
+            cbox.set_active(ch.pos)
             cbox.handler_unblock(cbox.changed_hid)
         except KeyError:
             pass
@@ -421,16 +437,15 @@ class AppWindow(Gtk.ApplicationWindow):
         self.player.stop()
 
     def play_next_source(self):
-        ch = self.channels[self.current_channel_name]
+        ch = self.current_channel
         try:
             if ch.url != ch.next():
-                self.play_channel(self.current_channel_name)
+                self.play_channel(self.current_channel)
         except IndexError:
             pass
 
     def play_nth_source(self, nth):
-        ch = self.channels[self.current_channel_name]
-        self.play_channel(self.current_channel_name, nth)
+        self.play_channel(self.current_channel, nth)
 
     def close(self):
         self.player.ttys.restore()
