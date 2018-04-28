@@ -17,6 +17,7 @@ def parse_tvlist(lines):
     for line in lines:
         if line.startswith("#"): continue
         line = line.strip()
+        if len(line) == 0: continue
         for sep in separation:
             cid, s, src = line.partition(sep)
             if s: break

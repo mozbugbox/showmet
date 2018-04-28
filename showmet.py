@@ -6,9 +6,11 @@ import sys
 import os
 import io
 import logging
+
+import re
+import time
 import pathlib
 import threading
-import time
 import collections
 
 import gi
@@ -336,13 +338,12 @@ class AppWindow(Gtk.ApplicationWindow):
         t.start()
 
     def load_channels_from_file(self, fname):
+        json_head_re = re.compile(r"(^[^\[]*|[^\]]*$)")
         with io.open(fname, encoding="UTF-8") as fh:
             content = fh.read().strip()
             try:
-                tag = " = "
-                idx = content.index(" = ")
                 import json
-                content = content[idx+len(tag):].strip(";")
+                content = json_head_re.sub("", content)
                 channel_list = json.loads(content)
                 self.channels.clear()
                 channel_names = collections.OrderedDict()
