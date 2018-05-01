@@ -177,6 +177,27 @@ class StationDict(collections.OrderedDict):
         self[key] = v
         return v
 
+class OrderedDefaultDict(collections.OrderedDict):
+    def __init__(self, default_factory, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.default_factory = default_factory
+
+    def __missing__(self, key):
+        if self.default_factory is None:
+            raise KeyError(key)
+        v = self.default_factory()
+        self[key] = v
+        return v
+
+PROVINCES = [
+        "北京", "天津", "上海", "重庆", "河北", "山西", "辽宁", "吉林",
+        "黑龙江", "江苏", "浙江", "安徽", "福建", "江西", "山东", "河南",
+        "湖北", "湖南", "广东", "海南", "四川", "贵州", "云南", "陕西",
+        "甘肃", "青海", "台湾", "内蒙古", "广西", "西藏", "宁夏", "新疆",
+        "香港", "澳门", "台湾"
+        ]
+province_pat = re.compile("({})".format("|".join(PROVINCES)))
+
 class StationManager(GObject.GObject):
     __gsignals__ = {
             "added": (GObject.SIGNAL_RUN_FIRST, None, (str,))
@@ -225,6 +246,25 @@ class StationManager(GObject.GObject):
             log.debug("{}".format(traceback.format_exc()))
             #raise
 
+    def categorize(self, name, channel_list):
+        stations = OrderedDefaultDict(list)
+        for k in [name, "CCTV", "卫视"]:
+            stations[k] = list()
+        for data in channel_list:
+            k = data[0].lower()
+            if k.startswith(("cctv", "cetv", "cgtn")):
+                stations["CCTV"].append(data)
+            elif k.endswith(("卫视", "卫视hd")):
+                stations["卫视"].append(data)
+            else:
+                m = province_pat.search(k)
+                if m is not None:
+                    prov = m.group(1)
+                    stations[prov].append(data)
+                else:
+                    stations[name].append(data)
+        return stations
+
     def load_channels_from_file(self, fname, station_name):
         json_head_re = re.compile(r"(^[^\[]*|[^\]]*$)")
 
@@ -235,16 +275,20 @@ class StationManager(GObject.GObject):
             import json
             content = json_head_re.sub("", content)
             channel_list = json.loads(content)
-            station = self.import_channel_list(station_name, channel_list)
+            channel_list_grouped = self.categorize(station_name, channel_list)
+            for k, data in channel_list_grouped.items():
+                station = self.import_channel_list(k, data)
+                self.add_station(station)
             self.log("Loaded channels from {}".format(fname))
-            self.add_station(station)
         except (IOError, ValueError) as e:
             log.warn("File: {}\n  {}".format(fname, e))
             import traceback
             log.debug("{}".format(traceback.format_exc()))
-            #raise
+            raise
 
     def load_channels(self):
+        self.load_user_channels()
+
         do_update = False
         if self.cache_path.exists():
             path = self.cache_path
@@ -262,7 +306,6 @@ class StationManager(GObject.GObject):
             do_update = True
 
         self.load_channels_from_file(path, "General")
-        self.load_user_channels()
 
         if do_update:
             self.update_live_channel()
