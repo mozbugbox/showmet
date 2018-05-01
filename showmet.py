@@ -284,7 +284,7 @@ class StationManager(GObject.GObject):
             log.warn("File: {}\n  {}".format(fname, e))
             import traceback
             log.debug("{}".format(traceback.format_exc()))
-            raise
+            #raise
 
     def load_channels(self):
         self.load_user_channels()
@@ -526,6 +526,9 @@ class AppWindow(Gtk.ApplicationWindow):
 
     def play_nth_source(self, nth):
         self.play_channel(self.current_channel, nth)
+
+    def update_live_channel(self):
+        self.station_man.update_live_channel()
 
     def close(self):
         self.player.ttys.restore()
