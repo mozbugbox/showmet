@@ -18,7 +18,7 @@ import collections
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib, Gio
+from gi.repository import GLib, GObject, Gtk, Gio
 
 import videoplayer
 
@@ -74,6 +74,9 @@ def _create_icon_button(icon_name=None, tooltip=None, action=None,
     if clicked is not None:
         bt.connect("clicked", clicked)
     return bt
+
+def defer(*args, **kwargs):
+    GLib.idle_add(*args, **kwargs)
 
 class Logger(Gtk.ScrolledWindow):
     def __init__(self, maxlen=64):
@@ -160,8 +163,13 @@ class ChannelInfo(collections.OrderedDict):
     def append(self, val):
         super().__setitem__(val, 1)
 
-class ChannelDict(collections.defaultdict):
+class StationDict(collections.OrderedDict):
     """defaultdict calls default_factory with key"""
+    def __init__(self, name, default_factory, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = name
+        self.default_factory = default_factory
+
     def __missing__(self, key):
         if self.default_factory is None:
             raise KeyError(key)
@@ -169,22 +177,129 @@ class ChannelDict(collections.defaultdict):
         self[key] = v
         return v
 
+class StationManager(GObject.GObject):
+    __gsignals__ = {
+            "added": (GObject.SIGNAL_RUN_FIRST, None, (str,))
+            }
+
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+        self.stations = collections.OrderedDict()
+
+    def log(self, msg):
+        self.app.log(msg)
+
+    @property
+    def cache_path(self):
+        path = CACHE_PATH
+        return path
+
+    def add_station(self, station):
+        if station.name not in self.stations:
+            self.emit("added", station.name)
+        self.stations[station.name] = station
+
+    def import_channel_list(self, name, channel_list):
+        """Import channel_list into a StationDict"""
+        station = StationDict(name, ChannelInfo)
+        for k, v in channel_list:
+            k = k.strip()
+            station[k].append(v.strip())
+        return station
+
+    def load_user_channels(self):
+        # Always load user channels first
+        ch_path = USER_CHAN_PATH
+        try:
+            with io.open(ch_path, encoding="UTF-8") as fh:
+                lines = fh.readlines()
+            import tvlist2json
+            channel_list = tvlist2json.parse_tvlist(lines)
+            station = self.import_channel_list("User", channel_list)
+            self.log("Loaded user channels from {}".format(ch_path))
+            self.add_station(station)
+        except IOError as e:
+            log.warn("File: {}\n  {}".format(ch_path, e))
+            import traceback
+            log.debug("{}".format(traceback.format_exc()))
+            #raise
+
+    def load_channels_from_file(self, fname, station_name):
+        json_head_re = re.compile(r"(^[^\[]*|[^\]]*$)")
+
+        try:
+            with io.open(fname, encoding="UTF-8") as fh:
+                content = fh.read().strip()
+
+            import json
+            content = json_head_re.sub("", content)
+            channel_list = json.loads(content)
+            station = self.import_channel_list(station_name, channel_list)
+            self.log("Loaded channels from {}".format(fname))
+            self.add_station(station)
+        except (IOError, ValueError) as e:
+            log.warn("File: {}\n  {}".format(fname, e))
+            import traceback
+            log.debug("{}".format(traceback.format_exc()))
+            #raise
+
+    def load_channels(self):
+        do_update = False
+        if self.cache_path.exists():
+            path = self.cache_path
+            mtime = path.stat().st_mtime
+            delta = time.time() - mtime
+            log.debug("Cache life: {}".format(sec2str(delta)))
+            if (delta) >= CACHE_LIFE:
+                do_update = True
+        else:
+            path = pathlib.Path(sys.argv[0]).absolute().with_name(CACHE_NAME)
+            self.cache_path.parent.mkdir(mode=0o700,
+                    parents=True, exist_ok=True)
+            import shutil
+            shutil.copy(path, self.cache_path)
+            do_update = True
+
+        self.load_channels_from_file(path, "General")
+        self.load_user_channels()
+
+        if do_update:
+            self.update_live_channel()
+
+    def update_live_channel(self):
+        """Load channel from URL"""
+        def _fetch_channel():
+            time.sleep(.01)
+            import requests
+            url = LIVE_CHANNEL_URL
+            self.log("Update Channel from {}...".format(url))
+            req = requests.get(url, timeout=30)
+            if req.text:
+                with io.open(self.cache_path, "w", encoding="UTF-8") as fhw:
+                    fhw.write(req.text)
+                GLib.idle_add(self.load_channels_from_file,
+                        self.cache_path, "General")
+        t = threading.Thread(target=_fetch_channel)
+        t.daemon = True
+        t.start()
+
 class AppWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.current_channel = None
-        self.channels = ChannelDict(ChannelInfo)
         self.setup_ui()
-        self.defer(self.load_rest)
+        defer(self.load_rest)
 
     def load_rest(self):
         """delay load"""
-        self.load_channels()
+        self.station_man = StationManager(self)
+        self.station_man.connect("added", self.on_station_added)
+        self.station_man.load_channels()
+        self.combobox_station.set_active(0)
+
         self.player = videoplayer.VideoPlayer(self)
         self.player.start_proc_monitor()
-
-    def defer(self, *args, **kwargs):
-        GLib.idle_add(*args, **kwargs)
 
     def setup_ui(self):
         self.resize(900, 800)
@@ -206,10 +321,15 @@ class AppWindow(Gtk.ApplicationWindow):
 
         tree.connect("row-activated", self.on_tree_row_activated)
 
-        """
-        select = tree.get_selection()
-        select.connect("changed", self.on_tree_selection_changed)
-        """
+        combobox_station = Gtk.ComboBoxText()
+        combobox_station.props.hexpand = True
+        hid = combobox_station.connect("changed",
+                self.on_combobox_station_changed)
+        combobox_station.changed_hid = hid
+
+        chan_grid = Gtk.Grid()
+        chan_grid.attach(combobox_station, 0, 0, 1, 1)
+        chan_grid.attach(sw_channel, 0, 1, 1, 1)
 
         logger = Logger()
         logger.props.can_focus = False
@@ -217,7 +337,7 @@ class AppWindow(Gtk.ApplicationWindow):
 
         paned1 = Gtk.HPaned()
         paned1.props.position = 160
-        paned1.add1(sw_channel)
+        paned1.add1(chan_grid)
         paned1.add2(logger)
         grid.attach(paned1, 0, 0, 1, 1)
         grid.show_all()
@@ -228,6 +348,7 @@ class AppWindow(Gtk.ApplicationWindow):
         self.load_accels()
 
         self.tree_channel = tree
+        self.combobox_station = combobox_station
         self.paned1 = paned1
         self.logger = logger
 
@@ -277,28 +398,26 @@ class AppWindow(Gtk.ApplicationWindow):
         """Log a message to the log window"""
         self.logger.log(msg)
 
-    def on_tree_selection_changed(self, sel):
-        model, treeiter = sel.get_selected()
-        if treeiter is not None:
-            chan_id, chan_src = model[treeiter]
-            self.player.play_url(chan_src, chan_id)
-
     def on_combobox_source_changed(self, cbox):
         idx = cbox.get_active()
         current_idx = self.current_channel.pos
         if idx != current_idx:
             self.play_nth_source(idx)
 
+    def channel_at(self, cursor):
+        model = self.tree_channel.get_model()
+        row = model[cursor]
+        chan_id = row[COL_CH_NAME]
+        station_name = self.combobox_station.get_active_text()
+        ch = self.station_man.stations[station_name][chan_id]
+        return ch
+
     def on_tree_row_activated(self, tree, path, col):
         if path is None:
             return
 
-        model = tree.get_model()
-        row = model[path]
-        chan_id = row[COL_CH_NAME]
-        ch = self.channels[chan_id]
+        ch = self.channel_at(path)
         self.current_channel = ch
-
         cbox = self.combobox_source
         cbox.handler_block(cbox.changed_hid)
         cbox.remove_all()
@@ -321,101 +440,19 @@ class AppWindow(Gtk.ApplicationWindow):
         except KeyError:
             pass
 
-    @property
-    def cache_path(self):
-        path = CACHE_PATH
-        return path
+    def on_station_added(self, station_man, name):
+        cbox = self.combobox_station
+        cbox.handler_block(cbox.changed_hid)
+        cbox.append(None, name)
+        cbox.handler_unblock(cbox.changed_hid)
 
-    def load_channels(self):
-        do_update = False
-        if self.cache_path.exists():
-            path = self.cache_path
-            mtime = path.stat().st_mtime
-            delta = time.time() - mtime
-            log.debug("Cache life: {}".format(sec2str(delta)))
-            if (delta) >= CACHE_LIFE:
-                do_update = True
-        else:
-            path = pathlib.Path(sys.argv[0]).absolute().with_name(CACHE_NAME)
-            self.cache_path.parent.mkdir(mode=0o700,
-                    parents=True, exist_ok=True)
-            import shutil
-            shutil.copy(path, self.cache_path)
-            do_update = True
-        self.load_channels_from_file(path)
-        if do_update:
-            self.update_live_channel()
+        if cbox.get_active_text() == name:
+            cbox.emit("changed")
 
-    def update_live_channel(self):
-        """Load channel from URL"""
-        def _fetch_channel():
-            time.sleep(.01)
-            import requests
-            url = LIVE_CHANNEL_URL
-            self.log("Update Channel from {}...".format(url))
-            req = requests.get(url, timeout=30)
-            if req.text:
-                with io.open(self.cache_path, "w", encoding="UTF-8") as fhw:
-                    fhw.write(req.text)
-                self.defer(self.load_channels_from_file, self.cache_path)
-        t = threading.Thread(target=_fetch_channel)
-        t.daemon = True
-        t.start()
-
-    def import_channel_list(self, channel_list):
-        """Import channel_list into self.channels and return channel_names"""
-        channel_names = collections.OrderedDict()
-        for k, v in channel_list:
-            k = k.strip()
-            self.channels[k].append(v.strip())
-            channel_names[k] = 1
-        return channel_names
-
-    def load_user_channels(self, channels):
-        # Always load user channels first
-        ch_path = USER_CHAN_PATH
-        cnames = {}
-        try:
-            with io.open(ch_path, encoding="UTF-8") as fh:
-                lines = fh.readlines()
-            import tvlist2json
-            channel_list = tvlist2json.parse_tvlist(lines)
-            cnames = self.import_channel_list(channel_list)
-            self.log("Loaded user channels from {}".format(ch_path))
-        except IOError as e:
-            log.warn("File: {}\n  {}".format(ch_path, e))
-            import traceback
-            log.debug("{}".format(traceback.format_exc()))
-            #raise
-        return cnames
-
-    def load_channels_from_file(self, fname):
-        json_head_re = re.compile(r"(^[^\[]*|[^\]]*$)")
-
-        try:
-            with io.open(fname, encoding="UTF-8") as fh:
-                content = fh.read().strip()
-
-            self.channels.clear()
-            channel_names = collections.OrderedDict()
-
-            # Load user channel first
-            names = self.load_user_channels(self.channels)
-            channel_names.update(names)
-
-            import json
-            content = json_head_re.sub("", content)
-            channel_list = json.loads(content)
-            names = self.import_channel_list(channel_list)
-            channel_names.update(names)
-            self.log("Loaded channels from {}".format(fname))
-        except (IOError, ValueError) as e:
-            log.warn("File: {}\n  {}".format(fname, e))
-            import traceback
-            log.debug("{}".format(traceback.format_exc()))
-            #raise
-
-        self.fill_channel_tree(channel_names.keys())
+    def on_combobox_station_changed(self, cbox):
+        name = cbox.get_active_text()
+        if name is not None:
+            self.fill_channel_tree(self.station_man.stations[name].keys())
 
     def fill_channel_tree(self, channel_names):
         model = self.tree_channel.get_model()
