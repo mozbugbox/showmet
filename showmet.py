@@ -104,6 +104,7 @@ class StationDict(collections.OrderedDict):
         super().__init__(*args, **kwargs)
         self.name = name
         self.default_factory = default_factory
+        self.current_channel = None
 
     def __missing__(self, key):
         if self.default_factory is None:
@@ -345,9 +346,17 @@ class Logger(Gtk.ScrolledWindow):
 class AppWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.current_channel = None
+        self.current_station = None
         self.setup_ui()
         defer(self.load_rest)
+
+    @property
+    def current_channel(self):
+        return self.current_station.current_channel
+
+    @current_channel.setter
+    def current_channel(self, v):
+        self.current_station.current_channel = v
 
     def load_rest(self):
         """delay load"""
@@ -528,7 +537,8 @@ class AppWindow(Gtk.ApplicationWindow):
     def on_combobox_station_changed(self, cbox):
         name = cbox.get_active_text()
         if name is not None:
-            self.fill_channel_tree(self.station_man.stations[name].keys())
+            self.current_station = self.station_man.stations[name]
+            self.fill_channel_tree(self.current_station.keys())
 
     def fill_channel_tree(self, channel_names):
         model = self.tree_channel.get_model()
@@ -546,7 +556,14 @@ class AppWindow(Gtk.ApplicationWindow):
         if path and chname == model[path][COL_CH_NAME]:
             self.tree_channel.set_cursor(path, None, False)
         else:
-            self.tree_channel.set_cursor("0", None, False)
+            path = "0"
+            if self.current_channel:
+                chname = self.current_channel.name
+                for row in model:
+                    if row[COL_CH_NAME] == chname:
+                        path = row.path
+                        break
+            self.tree_channel.set_cursor(path, None, False)
 
     def player_stop(self):
         self.player.stop()
