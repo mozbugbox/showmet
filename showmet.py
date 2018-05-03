@@ -536,9 +536,11 @@ class AppWindow(Gtk.ApplicationWindow):
         if path:
             chname = model[path][COL_CH_NAME]
 
+        self.tree_channel.freeze_child_notify()
         model.clear()
         for cid in channel_names:
             model.append([cid,])
+        self.tree_channel.thaw_child_notify()
 
         # reset cursor
         if path and chname == model[path][COL_CH_NAME]:
@@ -675,7 +677,6 @@ def main():
     app.run(sys.argv)
 
 if __name__ == '__main__':
-    import signal; signal.signal(signal.SIGINT, signal.SIG_DFL)
     try:
         main()
     except KeyboardInterrupt:
