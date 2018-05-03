@@ -36,12 +36,11 @@ CACHE_LIFE = 24 * 60 * 60
 import platform
 if platform.system() == "Windows":
     APPDATA_PATH = pathlib.Path(os.getenv("LOCALAPPDATA"))/APPNAME
-    CACHE_PATH = APPDATA_PATH/CACHE_NAME
-    USER_CHAN_PATH = APPDATA_PATH/USER_CHAN_NAME
 else:
     HOME = pathlib.Path.home()
-    CACHE_PATH = HOME/".cache"/APPNAME/CACHE_NAME
-    USER_CHAN_PATH = HOME/".local/share"/APPNAME/USER_CHAN_NAME
+    APPDATA_PATH = HOME/".local/share"/APPNAME
+CHANNEL_PATH = APPDATA_PATH/CACHE_NAME
+USER_CHAN_PATH = APPDATA_PATH/USER_CHAN_NAME
 
 LIVE_CHANNEL_URL = "https://raw.githubusercontent.com/mozbugbox/showmet/master/showmet-list.js"
 
@@ -217,8 +216,8 @@ class StationManager(GObject.GObject):
         self.app.log(msg)
 
     @property
-    def cache_path(self):
-        path = CACHE_PATH
+    def channel_path(self):
+        path = CHANNEL_PATH
         return path
 
     def add_station(self, station):
@@ -299,8 +298,8 @@ class StationManager(GObject.GObject):
         self.load_user_channels()
 
         do_update = False
-        if self.cache_path.exists():
-            path = self.cache_path
+        if self.channel_path.exists():
+            path = self.channel_path
             mtime = path.stat().st_mtime
             delta = time.time() - mtime
             log.debug("Cache life: {}".format(sec2str(delta)))
@@ -308,10 +307,10 @@ class StationManager(GObject.GObject):
                 do_update = True
         else:
             path = pathlib.Path(sys.argv[0]).absolute().with_name(CACHE_NAME)
-            self.cache_path.parent.mkdir(mode=0o700,
+            self.channel_path.parent.mkdir(mode=0o700,
                     parents=True, exist_ok=True)
             import shutil
-            shutil.copy(path, self.cache_path)
+            shutil.copy(path, self.channel_path)
             do_update = True
 
         self.load_channels_from_file(path, "General")
@@ -330,14 +329,14 @@ class StationManager(GObject.GObject):
             content = req.content
             if content:
                 checksum = checksum_bytes(content)
-                if checksum == self.file_checksum.get(self.cache_path, -1):
+                if checksum == self.file_checksum.get(self.channel_path, -1):
                     self.log("Live channel unchanged.")
                     return
 
-                with io.open(self.cache_path, "wb") as fhw:
+                with io.open(self.channel_path, "wb") as fhw:
                     fhw.write(content)
                 GLib.idle_add(self.load_channels_from_file,
-                        self.cache_path, "General")
+                        self.channel_path, "General")
             else:
                 self.log(f"Failed to get Channel data: {r.status_code}")
         t = threading.Thread(target=_fetch_channel)
