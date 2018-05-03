@@ -79,7 +79,7 @@ def _create_icon_button(icon_name=None, tooltip=None, action=None,
     return bt
 
 def defer(*args, **kwargs):
-    GLib.idle_add(*args, **kwargs)
+    return GLib.idle_add(*args, **kwargs)
 
 class Logger(Gtk.ScrolledWindow):
     def __init__(self, maxlen=64):
@@ -335,7 +335,7 @@ class StationManager(GObject.GObject):
 
                 with io.open(self.channel_path, "wb") as fhw:
                     fhw.write(content)
-                GLib.idle_add(self.load_channels_from_file,
+                defer(self.load_channels_from_file,
                         self.channel_path, "General")
             else:
                 self.log(f"Failed to get Channel data: {r.status_code}")
