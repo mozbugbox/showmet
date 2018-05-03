@@ -48,6 +48,10 @@ LIVE_CHANNEL_URL = "https://raw.githubusercontent.com/mozbugbox/showmet/master/s
 GMARGIN = 2
 COL_CH_NAME, COL_CH_URL = range(2)
 
+def checksum_bytes(data):
+    import hashlib
+    return hashlib.sha256(data).hexdigest()
+
 def _create_icon_image(icon_name, size=None):
     """Create Gtk image with stock icon"""
     if size is None:
@@ -207,6 +211,7 @@ class StationManager(GObject.GObject):
         super().__init__()
         self.app = app
         self.stations = collections.OrderedDict()
+        self.file_checksum = {}
 
     def log(self, msg):
         self.app.log(msg)
@@ -269,8 +274,12 @@ class StationManager(GObject.GObject):
         json_head_re = re.compile(r"(^[^\[]*|[^\]]*$)")
 
         try:
-            with io.open(fname, encoding="UTF-8") as fh:
-                content = fh.read().strip()
+            with io.open(fname, "rb") as fh:
+                content = fh.read()
+
+            checksum = checksum_bytes(content)
+            self.file_checksum[fname] = checksum
+            content = content.decode("UTF-8").strip()
 
             import json
             content = json_head_re.sub("", content)
@@ -318,11 +327,19 @@ class StationManager(GObject.GObject):
             url = LIVE_CHANNEL_URL
             self.log("Update Channel from {}...".format(url))
             req = requests.get(url, timeout=30)
-            if req.text:
-                with io.open(self.cache_path, "w", encoding="UTF-8") as fhw:
-                    fhw.write(req.text)
+            content = req.content
+            if content:
+                checksum = checksum_bytes(content)
+                if checksum == self.file_checksum.get(self.cache_path, -1):
+                    self.log("Live channel unchanged.")
+                    return
+
+                with io.open(self.cache_path, "wb") as fhw:
+                    fhw.write(content)
                 GLib.idle_add(self.load_channels_from_file,
                         self.cache_path, "General")
+            else:
+                self.log(f"Failed to get Channel data: {r.status_code}")
         t = threading.Thread(target=_fetch_channel)
         t.daemon = True
         t.start()
