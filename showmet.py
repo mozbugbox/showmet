@@ -469,7 +469,10 @@ class AppWindow(Gtk.ApplicationWindow):
     @property
     def current_station(self):
         station_name = self.combobox_station.get_active_text()
-        return self.station_man.stations[station_name]
+        station = None
+        if station_name is not None:
+            station = self.station_man.stations[station_name]
+        return station
 
     @property
     def current_channel(self):
@@ -538,8 +541,7 @@ class AppWindow(Gtk.ApplicationWindow):
             cbox.emit("changed")
 
     def on_combobox_station_changed(self, cbox):
-        name = cbox.get_active_text()
-        if name is not None:
+        if self.current_station is not None:
             self.fill_channel_tree(self.current_station.keys())
 
     def fill_channel_tree(self, channel_names):
