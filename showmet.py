@@ -346,17 +346,8 @@ class Logger(Gtk.ScrolledWindow):
 class AppWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.current_station = None
         self.setup_ui()
         defer(self.load_rest)
-
-    @property
-    def current_channel(self):
-        return self.current_station.current_channel
-
-    @current_channel.setter
-    def current_channel(self, v):
-        self.current_station.current_channel = v
 
     def load_rest(self):
         """delay load"""
@@ -475,6 +466,19 @@ class AppWindow(Gtk.ApplicationWindow):
         """Log a message to the log window"""
         self.logger.log(msg)
 
+    @property
+    def current_station(self):
+        station_name = self.combobox_station.get_active_text()
+        return self.station_man.stations[station_name]
+
+    @property
+    def current_channel(self):
+        return self.current_station.current_channel
+
+    @current_channel.setter
+    def current_channel(self, v):
+        self.current_station.current_channel = v
+
     def on_move_down(self, action, param):
         self.tree_channel.emit("move-cursor",
                 Gtk.MovementStep.DISPLAY_LINES, 1)
@@ -493,8 +497,7 @@ class AppWindow(Gtk.ApplicationWindow):
         model = self.tree_channel.get_model()
         row = model[cursor]
         chan_id = row[COL_CH_NAME]
-        station_name = self.combobox_station.get_active_text()
-        ch = self.station_man.stations[station_name][chan_id]
+        ch = self.current_station[chan_id]
         return ch
 
     def on_tree_row_activated(self, tree, path, col):
@@ -537,7 +540,6 @@ class AppWindow(Gtk.ApplicationWindow):
     def on_combobox_station_changed(self, cbox):
         name = cbox.get_active_text()
         if name is not None:
-            self.current_station = self.station_man.stations[name]
             self.fill_channel_tree(self.current_station.keys())
 
     def fill_channel_tree(self, channel_names):
