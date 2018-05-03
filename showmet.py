@@ -604,6 +604,11 @@ class Application(Gtk.Application):
         self.activate()
         return 0
 
+    def do_shutdown(self):
+        log.debug("shutdown")
+        self.window.close()
+        Gtk.Application.do_shutdown(self)
+
     def install_actions(self):
         actions = ["player_stop", "play_next_source", "refresh_channel",
                 "about", "quit"]
@@ -635,7 +640,6 @@ class Application(Gtk.Application):
         self.window.update_live_channel()
 
     def on_quit(self, action, param):
-        self.window.close()
         self.quit()
 
 def setup_log(log_level=None):
