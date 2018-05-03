@@ -51,73 +51,6 @@ def checksum_bytes(data):
     import hashlib
     return hashlib.sha256(data).hexdigest()
 
-def _create_icon_image(icon_name, size=None):
-    """Create Gtk image with stock icon"""
-    if size is None:
-        size = Gtk.IconSize.BUTTON
-    icon = Gio.ThemedIcon(name=icon_name)
-    image = Gtk.Image.new_from_gicon(icon, size)
-    return image
-
-def _create_icon_button(icon_name=None, tooltip=None, action=None,
-        clicked=None):
-    """Create Gtk button with stock icon"""
-    bt = Gtk.Button()
-    bt.props.can_focus = False
-    if icon_name is not None:
-        if isinstance(icon_name, Gtk.Image):
-            image = icon_name
-        else:
-            image = _create_icon_image(icon_name)
-        bt.set_image(image)
-    if tooltip is not None:
-        bt.props.tooltip_text = tooltip
-    if action is not None:
-        bt.props.action_name = action
-    if clicked is not None:
-        bt.connect("clicked", clicked)
-    return bt
-
-defer = GLib.idle_add
-
-class Logger(Gtk.ScrolledWindow):
-    def __init__(self, maxlen=64):
-        """Logging Widget with a maxlen of line"""
-        self.maxlen = maxlen
-
-        Gtk.ScrolledWindow.__init__(self)
-        self._textview = Gtk.TextView()
-        self._textview.props.editable = False
-        self._textview.props.can_focus = False
-        self.add(self._textview)
-
-        # need to get new size before we can scroll to the end.
-        self._textview.connect("size-allocate", self._autoscroll)
-
-    def log(self, text):
-        """Add text to the log widget"""
-        tbuf = self._textview.get_buffer()
-        timestamp = time.strftime("%H:%M:%S")
-        line = "[{}] {}".format(timestamp, text)
-
-        # limit textbuffer size to maxlen
-        line_count = tbuf.get_line_count()
-        if  line_count >= self.maxlen:
-            iter_start = tbuf.get_start_iter()
-            iter_cut = tbuf.get_iter_at_line(line_count - self.maxlen + 1)
-            tbuf.delete(iter_start, iter_cut)
-        iter_end = tbuf.get_end_iter()
-        tbuf.insert(iter_end, line + "\n")
-
-    def _autoscroll(self, *args):
-        """The actual scrolling method"""
-        tv = self._textview
-        tv.queue_draw()
-        tbuf = tv.get_buffer()
-        iter_end = tbuf.get_end_iter()
-        tv.scroll_to_iter(iter_end, 0.0, True, 0.0, 1.0)
-        return False
-
 def sec2str(seconds):
     h, s = divmod(seconds, 3600)
     m, s = divmod(s, 60)
@@ -341,6 +274,73 @@ class StationManager(GObject.GObject):
         t = threading.Thread(target=_fetch_channel)
         t.daemon = True
         t.start()
+
+defer = GLib.idle_add
+
+def _create_icon_image(icon_name, size=None):
+    """Create Gtk image with stock icon"""
+    if size is None:
+        size = Gtk.IconSize.BUTTON
+    icon = Gio.ThemedIcon(name=icon_name)
+    image = Gtk.Image.new_from_gicon(icon, size)
+    return image
+
+def _create_icon_button(icon_name=None, tooltip=None, action=None,
+        clicked=None):
+    """Create Gtk button with stock icon"""
+    bt = Gtk.Button()
+    bt.props.can_focus = False
+    if icon_name is not None:
+        if isinstance(icon_name, Gtk.Image):
+            image = icon_name
+        else:
+            image = _create_icon_image(icon_name)
+        bt.set_image(image)
+    if tooltip is not None:
+        bt.props.tooltip_text = tooltip
+    if action is not None:
+        bt.props.action_name = action
+    if clicked is not None:
+        bt.connect("clicked", clicked)
+    return bt
+
+class Logger(Gtk.ScrolledWindow):
+    def __init__(self, maxlen=64):
+        """Logging Widget with a maxlen of line"""
+        self.maxlen = maxlen
+
+        Gtk.ScrolledWindow.__init__(self)
+        self._textview = Gtk.TextView()
+        self._textview.props.editable = False
+        self._textview.props.can_focus = False
+        self.add(self._textview)
+
+        # need to get new size before we can scroll to the end.
+        self._textview.connect("size-allocate", self._autoscroll)
+
+    def log(self, text):
+        """Add text to the log widget"""
+        tbuf = self._textview.get_buffer()
+        timestamp = time.strftime("%H:%M:%S")
+        line = "[{}] {}".format(timestamp, text)
+
+        # limit textbuffer size to maxlen
+        line_count = tbuf.get_line_count()
+        if  line_count >= self.maxlen:
+            iter_start = tbuf.get_start_iter()
+            iter_cut = tbuf.get_iter_at_line(line_count - self.maxlen + 1)
+            tbuf.delete(iter_start, iter_cut)
+        iter_end = tbuf.get_end_iter()
+        tbuf.insert(iter_end, line + "\n")
+
+    def _autoscroll(self, *args):
+        """The actual scrolling method"""
+        tv = self._textview
+        tv.queue_draw()
+        tbuf = tv.get_buffer()
+        iter_end = tbuf.get_end_iter()
+        tv.scroll_to_iter(iter_end, 0.0, True, 0.0, 1.0)
+        return False
 
 class AppWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
