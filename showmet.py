@@ -78,8 +78,7 @@ def _create_icon_button(icon_name=None, tooltip=None, action=None,
         bt.connect("clicked", clicked)
     return bt
 
-def defer(*args, **kwargs):
-    return GLib.idle_add(*args, **kwargs)
+defer = GLib.idle_add
 
 class Logger(Gtk.ScrolledWindow):
     def __init__(self, maxlen=64):
@@ -356,6 +355,7 @@ class AppWindow(Gtk.ApplicationWindow):
         self.station_man.connect("added", self.on_station_added)
         self.station_man.load_channels()
         self.combobox_station.set_active(0)
+        self.install_actions()
 
         self.player = videoplayer.VideoPlayer(self)
         self.player.start_proc_monitor()
@@ -439,9 +439,18 @@ class AppWindow(Gtk.ApplicationWindow):
         self.combobox_source = cbox_source
         return hb
 
+    def install_actions(self):
+        actions = ["move_down", "move_up"]
+        for a_name in actions:
+            action = Gio.SimpleAction.new(a_name, None)
+            action.connect("activate", getattr(self, f"on_{a_name}"))
+            self.add_action(action)
+
     def load_accels(self):
         """Load shortcut/hotkeys"""
         accel_maps = [
+                ["win.move_down", ["j", "n"]],
+                ["win.move_up", ["k", "b"]],
                 ["app.player_stop", ["<Control>s"]],
                 ["app.play_next_source", ["<Control>Right"]],
                 ["app.refresh_channel", ["<Control>r"]],
@@ -456,6 +465,14 @@ class AppWindow(Gtk.ApplicationWindow):
     def log(self, msg):
         """Log a message to the log window"""
         self.logger.log(msg)
+
+    def on_move_down(self, action, param):
+        self.tree_channel.emit("move-cursor",
+                Gtk.MovementStep.DISPLAY_LINES, 1)
+
+    def on_move_up(self, action, param):
+        self.tree_channel.emit("move-cursor",
+                Gtk.MovementStep.DISPLAY_LINES, -1)
 
     def on_combobox_source_changed(self, cbox):
         idx = cbox.get_active()
