@@ -185,7 +185,7 @@ class StationManager(GObject.GObject):
 
     def categorize(self, name, channel_list):
         stations = OrderedDefaultDict(list)
-        for k in [name, "CCTV", "卫视"]:
+        for k in ["CCTV", "卫视", name]:
             stations[k] = list()
         for data in channel_list:
             k = data[0].lower()
