@@ -8,8 +8,8 @@ import io
 import time
 import requests
 import subprocess
-import logging as log
-from gi.repository import GLib
+import logging
+from gi.repository import GLib, GObject
 
 NATIVE=sys.getfilesystemencoding()
 
@@ -80,10 +80,14 @@ def setup_request_session(retry=3):
     return rs
 rsession = setup_request_session()
 
-class VideoPlayer:
+class VideoPlayer(GObject.GObject):
     """Video Player Class"""
     bin_list = PLAYER_BINS
+    __gsignals__ = {
+            "queue-empty": (GObject.SIGNAL_RUN_FIRST, None, ())
+            }
     def __init__(self, app=None):
+        super().__init__()
         self.app = app
         self.player = get_bin_path(self.bin_list)
         self.ts_player = None
@@ -119,6 +123,8 @@ class VideoPlayer:
     def check_proc_list(self):
         """clean up state of process in the process list"""
         running = []
+        list_len = len(self.proc_list)
+
         for title, proc in self.proc_list:
             proc.poll()
             if proc.returncode is not None:
@@ -127,6 +133,12 @@ class VideoPlayer:
                 self.ttys.restore()
             else:
                 running.append((title, proc))
+
+        run_len = len(running)
+        if list_len > 0 and run_len == 0:
+            self.proc = None
+            self.emit("queue-empty")
+
         self.proc_list = running
         return True
 
@@ -209,18 +221,40 @@ class VideoPlayer:
                 if proc.returncode is None:
                     proc.kill()
                 if wait:
-                    print("Waiting process to stop")
+                    self.log("Waiting process to stop")
                     proc.wait()
             except Exception as e:
-                print("Exception: {}".format(e))
+                log.exception("Failed to stop process {}".format(proc.pid))
             finally:
                 self.proc = None
                 self.ttys.restore()
         self.check_proc_list()
 
+    @property
+    def is_running(self):
+        return self.proc is not None
+
     def start_proc_monitor(self):
         """Monitor running subprocesses"""
         GLib.timeout_add_seconds(1, self.check_proc_list)
+
+def setup_log(log_level=None):
+    global log
+    rlog = logging.getLogger()
+    if __name__ == "__main__" and not rlog.hasHandlers():
+        # setup root logger
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter(
+                "%(levelname)s:%(name)s@%(lineno)s:: %(message)s")
+        ch.setFormatter(formatter)
+        rlog.addHandler(ch)
+
+    log = logging.getLogger(__name__)
+
+    if log_level is not None:
+        log.setLevel(log_level)
+        rlog.setLevel(log_level)
+setup_log()
 
 def main():
     def set_stdio_encoding(enc=NATIVE):
@@ -230,8 +264,8 @@ def main():
             if not obj.encoding: setattr(sys,  x, codecs.getwriter(enc)(obj))
     set_stdio_encoding()
 
-    log_level = log.INFO
-    log.basicConfig(format="%(levelname)s>> %(message)s", level=log_level)
+    log_level = logging.INFO
+    setup_log(log_level)
 
 if __name__ == '__main__':
     main()

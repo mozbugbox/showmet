@@ -99,7 +99,7 @@ class ChannelInfo(collections.OrderedDict):
         super().__setitem__(val, 1)
 
 class StationDict(collections.OrderedDict):
-    """defaultdict calls default_factory with key"""
+    """defaultdict calls self.default_factory(key) with key"""
     def __init__(self, name, default_factory, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = name
@@ -358,6 +358,7 @@ class AppWindow(Gtk.ApplicationWindow):
         self.install_actions()
 
         self.player = videoplayer.VideoPlayer(self)
+        self.player.connect("queue-empty", self.on_player_queue_empty)
         self.player.start_proc_monitor()
 
     def setup_ui(self):
@@ -417,9 +418,14 @@ class AppWindow(Gtk.ApplicationWindow):
         hb.props.title = "ShowMeT"
         hb.props.has_subtitle = False
 
-        button_player_stop = _create_icon_button(
-                "media-playback-stop-symbolic", "Player Stop <Ctrl+s>",
-                action="app.player_stop")
+        start_icon = _create_icon_image("media-playback-start-symbolic")
+        stop_icon = _create_icon_image("media-playback-stop-symbolic")
+        button_player_start_stop = _create_icon_button(
+                start_icon, "Player Stop <Ctrl+s>",
+                action="app.player_start_stop")
+        button_player_start_stop.start_icon = start_icon
+        button_player_start_stop.stop_icon = stop_icon
+
         button_refresh_channel = _create_icon_button(
                 "view-refresh-symbolic", "Refresh Channel <Ctrl+r>",
                 action="app.refresh_channel")
@@ -432,11 +438,12 @@ class AppWindow(Gtk.ApplicationWindow):
         cbox_source.changed_hid = hid
 
         hb.pack_start(button_refresh_channel)
-        hb.pack_start(button_player_stop)
+        hb.pack_start(button_player_start_stop)
         hb.pack_start(cbox_source)
         hb.pack_end(button_about)
         hb.show_all()
         self.combobox_source = cbox_source
+        self.button_player_start_stop = button_player_start_stop
         return hb
 
     def install_actions(self):
@@ -451,7 +458,7 @@ class AppWindow(Gtk.ApplicationWindow):
         accel_maps = [
                 ["win.move_down", ["j", "n"]],
                 ["win.move_up", ["k", "b"]],
-                ["app.player_stop", ["<Control>s"]],
+                ["app.player_start_stop", ["<Control>s"]],
                 ["app.play_next_source", ["<Control>Right"]],
                 ["app.refresh_channel", ["<Control>r"]],
                 ["app.help", ["F1"]],
@@ -496,6 +503,12 @@ class AppWindow(Gtk.ApplicationWindow):
         if idx != current_idx:
             self.play_nth_source(idx)
 
+    def on_player_queue_empty(self, player):
+        button = self.button_player_start_stop
+        icon = button.props.image
+        if icon == button.stop_icon:
+            button.props.image = button.start_icon
+
     def channel_at(self, cursor):
         model = self.tree_channel.get_model()
         row = model[cursor]
@@ -521,6 +534,9 @@ class AppWindow(Gtk.ApplicationWindow):
     def play_channel(self, ch, idx=None):
         """@ch: a ChannelInfo"""
         try:
+            button = self.button_player_start_stop
+            button.set_image(button.stop_icon)
+
             chan_url = ch.url if idx is None else ch[idx]
             self.player.play_url(chan_url, ch.name)
 
@@ -528,6 +544,7 @@ class AppWindow(Gtk.ApplicationWindow):
             cbox.handler_block(cbox.changed_hid)
             cbox.set_active(ch.pos)
             cbox.handler_unblock(cbox.changed_hid)
+
         except KeyError:
             pass
 
@@ -569,8 +586,14 @@ class AppWindow(Gtk.ApplicationWindow):
                         break
             self.tree_channel.set_cursor(path, None, False)
 
-    def player_stop(self):
-        self.player.stop()
+    def player_start_stop(self):
+        button = self.button_player_start_stop
+        icon = button.props.image
+        if icon == button.start_icon:
+            self.play_channel(self.current_channel)
+        else:
+            button.props.image = button.start_icon
+            self.player.stop()
 
     def play_next_source(self):
         ch = self.current_channel
@@ -633,7 +656,7 @@ class Application(Gtk.Application):
         Gtk.Application.do_shutdown(self)
 
     def install_actions(self):
-        actions = ["player_stop", "play_next_source", "refresh_channel",
+        actions = ["player_start_stop", "play_next_source", "refresh_channel",
                 "about", "quit"]
         for a_name in actions:
             action = Gio.SimpleAction.new(a_name, None)
@@ -653,8 +676,8 @@ class Application(Gtk.Application):
 
         dlg.present()
 
-    def on_player_stop(self, action, param):
-        self.window.player_stop()
+    def on_player_start_stop(self, action, param):
+        self.window.player_start_stop()
 
     def on_play_next_source(self, action, param):
         self.window.play_next_source()
