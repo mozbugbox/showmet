@@ -528,6 +528,7 @@ class AppWindow(Gtk.ApplicationWindow):
         for i in range(len(ch)):
             cbox.append(None, str(i+1))
         cbox.handler_unblock(cbox.changed_hid)
+        cbox.props.sensitive = (len(ch) > 1)
 
         self.play_channel(ch)
 
