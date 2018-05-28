@@ -447,7 +447,7 @@ class AppWindow(Gtk.ApplicationWindow):
         return hb
 
     def install_actions(self):
-        actions = ["move_down", "move_up"]
+        actions = ["move_down", "move_up", "station_up", "station_down"]
         for a_name in actions:
             action = Gio.SimpleAction.new(a_name, None)
             action.connect("activate", getattr(self, f"on_{a_name}"))
@@ -458,6 +458,8 @@ class AppWindow(Gtk.ApplicationWindow):
         accel_maps = [
                 ["win.move_down", ["j", "n"]],
                 ["win.move_up", ["k", "b"]],
+                ["win.station_up", ["<Control>Up"]],
+                ["win.station_down", ["<Control>Down"]],
                 ["app.player_start_stop", ["<Control>s"]],
                 ["app.play_next_source", ["<Control>Right"]],
                 ["app.refresh_channel", ["<Control>r"]],
@@ -496,6 +498,16 @@ class AppWindow(Gtk.ApplicationWindow):
     def on_move_up(self, action, param):
         self.tree_channel.emit("move-cursor",
                 Gtk.MovementStep.DISPLAY_LINES, -1)
+
+    def on_station_down(self, action, param):
+        cbox = self.combobox_station
+        if cbox.props.active < len(cbox.props.model) - 1:
+            cbox.props.active += 1
+
+    def on_station_up(self, action, param):
+        cbox = self.combobox_station
+        if cbox.props.active > 0:
+            cbox.props.active -= 1
 
     def on_combobox_source_changed(self, cbox):
         idx = cbox.get_active()
@@ -599,7 +611,7 @@ class AppWindow(Gtk.ApplicationWindow):
     def play_next_source(self):
         ch = self.current_channel
         try:
-            if ch.url != ch.next():
+            if ch and ch.url != ch.next():
                 self.play_channel(self.current_channel)
         except IndexError:
             pass
