@@ -165,10 +165,15 @@ class VideoPlayer(GObject.GObject):
         if cmd:
             return cmd
 
+        # mpv don't like network-timeout with some rtsp://?
+        timeout = self.network_timeout
+        if url.startswith("rtsp"):
+            timeout = 0
+
         if "mpv" in self.player:
             cmd = [self.player,
                     "--cache-secs", "16",
-                    "--network-timeout", str(self.network_timeout),
+                    "--network-timeout", str(timeout),
                     "--hls-bitrate", "2500000",
                     "--force-window=yes",
                   ]
