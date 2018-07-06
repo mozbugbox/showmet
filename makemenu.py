@@ -21,13 +21,14 @@ def fix_headerbar_menu(headerbar):
     res = True
     def _foreach(child):
         nonlocal res
-        if isinstance(child, Gtk.Container):
-            for kid in child.get_children():
-                if isinstance(kid, Gtk.MenuButton):
-                    aname = kid.get_accessible().props.accessible_name
-                    if aname.lower() == "application menu":
-                        kid.props.use_popover = False
-                        res = False
+        if not isinstance(child, Gtk.Container):
+            return
+
+        for kid in child.get_children():
+            aname = kid.get_accessible().props.accessible_name
+            if aname is not None and aname.lower() == "application menu":
+                kid.props.use_popover = False
+                res = False
 
     def _on_fix_timeout(wid):
         # has to call forall since the boxes in hb are internal
@@ -107,7 +108,7 @@ def setup_app_menu_by_actions(gapp, action_names):
     menu.append(section)
     for act in action_names:
         _, _, title = act.partition(".")
-        label = title.replace("_", " ").capitalize()
+        label = title.replace("_", " ").title()
         item = MenuItem(label, act)
         section.append(item)
 
