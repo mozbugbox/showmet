@@ -21,6 +21,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, GObject, Gtk, Gio
 
 import videoplayer
+import makemenu
 
 __version__ = "0.1"
 
@@ -347,6 +348,7 @@ class AppWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setup_ui()
+        makemenu.fix_headerbar_menu(self.headerbar)
         defer(self.load_rest)
 
     def load_rest(self):
@@ -411,6 +413,7 @@ class AppWindow(Gtk.ApplicationWindow):
         self.combobox_station = combobox_station
         self.paned1 = paned1
         self.logger = logger
+        self.headerbar = hb
 
     def setup_header_bar(self):
         hb = Gtk.HeaderBar()
@@ -470,6 +473,9 @@ class AppWindow(Gtk.ApplicationWindow):
         gapp = self.get_application()
         for act, k in accel_maps:
             gapp.set_accels_for_action(act, k)
+
+        actions = [x[0] for x in accel_maps]
+        makemenu.setup_app_menu_by_actions(gapp, actions)
 
     def log(self, msg):
         """Log a message to the log window"""
