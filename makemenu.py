@@ -94,23 +94,25 @@ class MenuUI(MenuSection):
         res.append(f'  <menu id="{label}">')
         return res
 
-def setup_app_menu_by_actions(gapp, action_names):
+def setup_app_menu_by_actions(action_names, gapp=None):
     """Add actions to GtkApplication menu
     action_names = [action_fullname, ...]
     """
-    from gi.repository import Gtk
     menu_name = "app-menu"
     menu = MenuUI(menu_name)
     section = MenuSection()
     menu.append(section)
     for act in action_names:
         _, _, title = act.partition(".")
-        label = title.replace("_", " ").title()
+        label = title.replace("-", " ").title()
         item = MenuItem(label, act)
         section.append(item)
 
-    builder = Gtk.Builder.new_from_string(str(menu), -1)
-    gapp.set_app_menu(builder.get_object(menu_name))
+    if gapp is not None:
+        from gi.repository import Gtk
+        builder = Gtk.Builder.new_from_string(str(menu), -1)
+        gapp.set_app_menu(builder.get_object(menu_name))
+    return str(menu)
 
 def setup_log(log_level=None):
     global log

@@ -425,13 +425,13 @@ class AppWindow(Gtk.ApplicationWindow):
         stop_icon = _create_icon_image("media-playback-stop-symbolic")
         button_player_start_stop = _create_icon_button(
                 start_icon, "Player Stop <Ctrl+s>",
-                action="app.player_start_stop")
+                action="app.player-start-stop")
         button_player_start_stop.start_icon = start_icon
         button_player_start_stop.stop_icon = stop_icon
 
         button_refresh_channel = _create_icon_button(
                 "view-refresh-symbolic", "Refresh Channel <Ctrl+r>",
-                action="app.refresh_channel")
+                action="app.refresh-channel")
         button_about = _create_icon_button("help-about",
                 "About", action="app.about")
         cbox_source = Gtk.ComboBoxText()
@@ -450,22 +450,23 @@ class AppWindow(Gtk.ApplicationWindow):
         return hb
 
     def install_actions(self):
-        actions = ["move_down", "move_up", "station_up", "station_down"]
+        actions = ["move-down", "move-up", "station-up", "station-down"]
         for a_name in actions:
             action = Gio.SimpleAction.new(a_name, None)
-            action.connect("activate", getattr(self, f"on_{a_name}"))
+            method = f'on_{a_name.replace("-", "_")}'
+            action.connect("activate", getattr(self, method))
             self.add_action(action)
 
     def load_accels(self):
         """Load shortcut/hotkeys"""
         accel_maps = [
-                ["win.move_down", ["j", "n"]],
-                ["win.move_up", ["k", "b"]],
-                ["win.station_up", ["<Control>Up"]],
-                ["win.station_down", ["<Control>Down"]],
-                ["app.player_start_stop", ["<Control>s"]],
-                ["app.play_next_source", ["<Control>Right"]],
-                ["app.refresh_channel", ["<Control>r"]],
+                ["win.move-down", ["j", "n"]],
+                ["win.move-up", ["k", "b"]],
+                ["win.station-up", ["<Control>Up"]],
+                ["win.station-down", ["<Control>Down"]],
+                ["app.player-start-stop", ["<Control>s"]],
+                ["app.play-next-source", ["<Control>Right"]],
+                ["app.refresh-channel", ["<Control>r"]],
                 ["app.help", ["F1"]],
                 ["app.quit", ["<Control>q"]],
             ]
@@ -475,7 +476,7 @@ class AppWindow(Gtk.ApplicationWindow):
             gapp.set_accels_for_action(act, k)
 
         actions = [x[0] for x in accel_maps]
-        makemenu.setup_app_menu_by_actions(gapp, actions)
+        makemenu.setup_app_menu_by_actions(actions, gapp)
 
     def log(self, msg):
         """Log a message to the log window"""
@@ -675,11 +676,12 @@ class Application(Gtk.Application):
         Gtk.Application.do_shutdown(self)
 
     def install_actions(self):
-        actions = ["player_start_stop", "play_next_source", "refresh_channel",
+        actions = ["player-start-stop", "play-next-source", "refresh-channel",
                 "about", "quit"]
         for a_name in actions:
             action = Gio.SimpleAction.new(a_name, None)
-            action.connect("activate", getattr(self, f"on_{a_name}"))
+            method = f'on_{a_name.replace("-", "_")}'
+            action.connect("activate", getattr(self, method))
             self.add_action(action)
 
     def on_about(self, action, param):
