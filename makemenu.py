@@ -76,7 +76,7 @@ class MenuSection:
         return res
 
     def __str__(self):
-        res = self._header
+        res = [] + self._header
         self.do_label(res)
 
         for item in self.subitems:
