@@ -48,15 +48,20 @@ class MenuItem:
     def __str__(self):
         res = ["<item>"]
         res.append(f'  <attribute name="action">{self.action}</attribute>')
-        res.append(f'  <attribute name="label" translatable="yes">{self.label}</attribute>')
+        res.append(f'  <attribute name="label" translatable="yes">'
+                f'{self.label}</attribute>')
         if self.target is not None:
-            res.append(f'  <attribute name="target">{self.target}</attribute>')
+            res.append(f'  <attribute name="target">{self.target}'
+                    f'</attribute>')
         if self.accel is not None:
             res.append(f'  <attribute name="accel">{self.accel}</attribute>')
         res.append("</item>")
         return "\n".join(res)
 
 class MenuSection:
+    _header = ["<section>"]
+    _tailer = ["</section>"]
+    _indent = 2
     def __init__(self, label=None):
         self.label = None if label is None else saxutils.escape(label)
         self.subitems = []
@@ -64,44 +69,36 @@ class MenuSection:
     def append(self, item):
         self.subitems.append(item)
 
-    def __str__(self):
-        res = ["<section>"]
+    def do_label(self, res):
         if self.label is not None:
-            res.append(f'  <attribute name="label" translatable="yes">{self.label}</attribute>')
-
-        for item in self.subitems:
-            lines = str(item).splitlines()
-            for line in lines:
-                res.append("  " + line)
-        res.append("</section>")
-        return "\n".join(res)
-
-class MenuUI:
-    def __init__(self, menu_id="app-menu"):
-        self.menu_id = saxutils.escape(menu_id)
-        self.subitems = []
-
-    def append(self, item):
-        self.subitems.append(item)
+            res.append(f'  <attribute name="label" translatable="yes">'
+                    f'{self.label}</attribute>')
+        return res
 
     def __str__(self):
-        res = ['<?xml version="1.0" encoding="UTF-8"?>', "<interface>"]
-        res.append(f'  <menu id="{self.menu_id}">')
+        res = self._header
+        self.do_label(res)
+
         for item in self.subitems:
             lines = str(item).splitlines()
-            for line in lines:
-                res.append("    " + line)
-        res.append("  </menu>")
-        res.append("</interface>")
+            res += [" " * self._indent + line for line in lines]
+        res = res + self._tailer
         return "\n".join(res)
 
-
+class MenuUI(MenuSection):
+    _header = ['<?xml version="1.0" encoding="UTF-8"?>', "<interface>"]
+    _tailer = ["  </menu>", "</interface>"]
+    _indent = 4
+    def do_label(self, res):
+        label = "app-menu" if self.label is None else self.label
+        res.append(f'  <menu id="{label}">')
+        return res
 
 def setup_app_menu_by_actions(gapp, action_names):
     """Add actions to GtkApplication menu
     action_names = [action_fullname, ...]
     """
-    from gi.repository import Gtk, GLib
+    from gi.repository import Gtk
     menu_name = "app-menu"
     menu = MenuUI(menu_name)
     section = MenuSection()
@@ -147,7 +144,7 @@ def main():
     setup_log(log_level)
 
     menu = MenuUI()
-    section = MenuSection("Seeion Top")
+    section = MenuSection("Section Top")
     menu.append(section)
     for i in range(10):
         item = MenuItem(f"menu{i}", f"win.action_menu{i}")
