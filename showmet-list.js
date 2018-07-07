@@ -32,7 +32,7 @@ watchlist_data = [
     "rtsp://60.214.109.103:1554/iptv/Tvod/iptv/001/001/ch12101814173650174727.rsc/34325_Uni.sdp"
   ],
   [
-    "CCTV5HD",
+    "CCTV5+HD",
     "rtsp://60.214.109.103:1554/iptv/Tvod/iptv/001/001/ch11061217321508656858.rsc/34420_Uni.sdp"
   ],
   [
