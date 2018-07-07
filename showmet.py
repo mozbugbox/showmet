@@ -140,9 +140,12 @@ class StationManager(GObject.GObject):
             "added": (GObject.SIGNAL_RUN_FIRST, None, (str,))
             }
 
-    def __init__(self, app):
+    def __init__(self, app, test_channel_path=None):
         super().__init__()
         self.app = app
+        if test_channel_path is not None:
+            test_channel_path = pathlib.Path(test_channel_path)
+        self.test_channel_path = test_channel_path
         self.stations = collections.OrderedDict()
         self.file_checksum = {}
 
@@ -232,7 +235,9 @@ class StationManager(GObject.GObject):
         self.load_user_channels()
 
         do_update = False
-        if self.channel_path.exists():
+        if self.test_channel_path is not None:
+            path = self.test_channel_path
+        elif self.channel_path.exists():
             path = self.channel_path
             mtime = path.stat().st_mtime
             delta = time.time() - mtime
@@ -347,13 +352,14 @@ class Logger(Gtk.ScrolledWindow):
 class AppWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.test_channel_path = None
         self.setup_ui()
         makemenu.fix_headerbar_menu(self.headerbar)
         defer(self.load_rest)
 
     def load_rest(self):
         """delay load"""
-        self.station_man = StationManager(self)
+        self.station_man = StationManager(self, self.test_channel_path)
         self.station_man.connect("added", self.on_station_added)
         self.station_man.load_channels()
         self.combobox_station.set_active(0)
@@ -640,6 +646,10 @@ class Application(Gtk.Application):
                          **kwargs)
         self.window = None
 
+        self.add_main_option("test-channel", ord("t"), GLib.OptionFlags.NONE,
+                             GLib.OptionArg.STRING, "test channel list",
+                             "channel-list.js")
+
         self.add_main_option("debug", ord("D"), GLib.OptionFlags.NONE,
                              GLib.OptionArg.NONE, "Debug mode", None)
 
@@ -657,15 +667,19 @@ class Application(Gtk.Application):
             # Windows are associated with the application
             # when the last one is closed the application shuts down
             self.window = AppWindow(application=self, title="Show Me T")
+            if "test-channel" in self.options:
+                self.window.test_channel_path = self.options["test-channel"]
 
         self.window.present()
 
     def do_command_line(self, command_line):
         options = command_line.get_options_dict()
+        options = dict(options.end())
 
-        if options.contains("debug"):
+        if options.get("debug", False):
             # This is printed on the main instance
             setup_log(logging.DEBUG)
+        self.options = options
 
         self.activate()
         return 0
