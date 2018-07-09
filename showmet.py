@@ -277,7 +277,7 @@ class StationManager(GObject.GObject):
                 defer(self.load_channels_from_file,
                         self.channel_path, "General")
             else:
-                self.log(f"Failed to get Channel data: {r.status_code}")
+                self.log(f"Failed to get Channel data: {req.status_code}")
         t = threading.Thread(target=_fetch_channel)
         t.daemon = True
         t.start()

@@ -19,6 +19,7 @@ def fix_headerbar_menu(headerbar):
     from gi.repository import Gtk, GLib
     timeout = 500
     res = True
+
     def _foreach(child):
         nonlocal res
         if not isinstance(child, Gtk.Container):
@@ -36,9 +37,11 @@ def fix_headerbar_menu(headerbar):
         wid.forall(_foreach)
         return res
 
+    # keep trying as menu might not be added to headerbar yet
     GLib.timeout_add(timeout, _on_fix_timeout, headerbar)
 
 class MenuItem:
+    """Menu item class for Gtk Builder UI interface"""
     def __init__(self, label, action, target=None, accel=None):
         self.action = saxutils.escape(action)
         self.label = saxutils.escape(label)
@@ -59,6 +62,7 @@ class MenuItem:
         return "\n".join(res)
 
 class MenuSection:
+    """Menu section class for Gtk Builder UI interface"""
     _header = ["<section>"]
     _tailer = ["</section>"]
     _indent = 2
@@ -67,9 +71,11 @@ class MenuSection:
         self.subitems = []
 
     def append(self, item):
+        """Append sub item to the section"""
         self.subitems.append(item)
 
     def do_label(self, res):
+        """Handle the section label attribute"""
         if self.label is not None:
             res.append(f'  <attribute name="label" translatable="yes">'
                     f'{self.label}</attribute>')
@@ -86,17 +92,20 @@ class MenuSection:
         return "\n".join(res)
 
 class MenuUI(MenuSection):
+    """Menu class for Gtk Builder UI interface"""
     _header = ['<?xml version="1.0" encoding="UTF-8"?>', "<interface>"]
     _tailer = ["  </menu>", "</interface>"]
     _indent = 4
     def do_label(self, res):
+        """Handle the menu id attribute """
         label = "app-menu" if self.label is None else self.label
         res.append(f'  <menu id="{label}">')
         return res
 
-def setup_app_menu_by_actions(action_names, gapp=None):
+def setup_app_menu_by_actions(action_names, parent=None):
     """Add actions to GtkApplication menu
     action_names = [action_fullname, ...]
+    parent: can be GtkApplication, MenuButton or HeaderBar
     """
     menu_name = "app-menu"
     menu = MenuUI(menu_name)
@@ -108,10 +117,27 @@ def setup_app_menu_by_actions(action_names, gapp=None):
         item = MenuItem(label, act)
         section.append(item)
 
-    if gapp is not None:
+    if parent is not None:
         from gi.repository import Gtk
         builder = Gtk.Builder.new_from_string(str(menu), -1)
-        gapp.set_app_menu(builder.get_object(menu_name))
+        menu_model = builder.get_object(menu_name)
+        if isinstance(parent, Gtk.Application):
+            parent.set_app_menu(menu_model)
+        elif isinstance(parent, Gtk.MenuButton):
+            parent.set_menu_model(menu_model)
+        elif isinstance(parent, Gtk.HeaderBar):
+            button = Gtk.MenuButton()
+            button.props.valign = Gtk.Align.CENTER
+            button.props.can_focus = False
+            button.props.use_popover = False
+            button.set_menu_model(menu_model)
+            button.get_style_context().add_class("titlebutton")
+            image = Gtk.Image.new_from_icon_name(
+                    "open-menu-symbolic", Gtk.IconSize.MENU);
+            button.add(image)
+            button.show_all()
+            parent.pack_end(button)
+
     return str(menu)
 
 def setup_log(log_level=None):
