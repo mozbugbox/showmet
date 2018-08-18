@@ -26,8 +26,10 @@ import makemenu
 __version__ = "0.1"
 
 APPNAME_FULL = "ShowMeT"
-APPNAME = APPNAME_FULL.lower()
-APPID = "{}.{}.{}".format("org", "mozbugbox", APPNAME )
+APPTITLE = APPNAME_FULL.translate(str.maketrans("_-", "  ")).title()
+APPID = APPNAME_FULL.replace("-", "_")
+APPNAME = APPID.lower()
+APPID_FULL = "{}.{}.{}".format("org", "mozbugbox", APPID)
 
 NATIVE=sys.getfilesystemencoding()
 CACHE_NAME = "{}-list.js".format(APPNAME)
@@ -220,6 +222,8 @@ class StationManager(GObject.GObject):
             import json
             content = json_head_re.sub("", content)
             channel_list = json.loads(content)
+            # skip channel without address
+            channel_list = [x for x in channel_list if x[1]]
             channel_list_grouped = self.categorize(station_name, channel_list)
             for k, data in channel_list_grouped.items():
                 station = self.import_channel_list(k, data)
@@ -641,7 +645,7 @@ class AppWindow(Gtk.ApplicationWindow):
 class Application(Gtk.Application):
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, application_id=APPID,
+        super().__init__(*args, application_id=APPID_FULL,
                          flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
                          **kwargs)
         self.window = None
@@ -654,7 +658,7 @@ class Application(Gtk.Application):
                              GLib.OptionArg.NONE, "Debug mode", None)
 
     def do_startup(self):
-        GLib.set_application_name(APPNAME_FULL)
+        GLib.set_application_name(APPID)
         Gtk.Application.do_startup(self)
 
         self.install_actions()
@@ -666,7 +670,7 @@ class Application(Gtk.Application):
         if not self.window:
             # Windows are associated with the application
             # when the last one is closed the application shuts down
-            self.window = AppWindow(application=self, title="Show Me T")
+            self.window = AppWindow(application=self, title=APPTITLE)
             if "test-channel" in self.options:
                 self.window.test_channel_path = self.options["test-channel"]
 
@@ -760,4 +764,5 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         log.info("User interrupt")
+
 

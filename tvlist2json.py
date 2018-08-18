@@ -63,6 +63,8 @@ def main():
     if len(result) > 0:
         outpath = pathlib.Path(fname).with_suffix(".js")
         log.info("Write result to {}".format(outpath))
+
+        result.insert(0, [fname, ""])
         with io.open(outpath, "w", encoding="UTF-8") as fhw:
             fhw.write("watchlist_data = ")
             fhw.write(json.dumps(result, indent=2, ensure_ascii=False))
