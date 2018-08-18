@@ -82,7 +82,7 @@ class ChannelInfo(collections.OrderedDict):
 
     def find(self, url):
         """Find the position of the given url"""
-        res = list(keys()).find(url)
+        res = list(self.keys()).find(url)
         return res
 
     def next(self):
@@ -139,7 +139,8 @@ province_pat = re.compile("({})".format("|".join(PROVINCES)))
 
 class StationManager(GObject.GObject):
     __gsignals__ = {
-            "added": (GObject.SIGNAL_RUN_FIRST, None, (str,))
+            "added": (GObject.SIGNAL_RUN_FIRST, None, (str,)),
+            "load-channel-done": (GObject.SIGNAL_RUN_FIRST, None, ()),
             }
 
     def __init__(self, app, test_channel_path=None):
@@ -197,7 +198,7 @@ class StationManager(GObject.GObject):
             k = data[0].lower()
             if k.startswith(("cctv", "cetv", "cgtn")):
                 stations["CCTV"].append(data)
-            elif k.endswith(("卫视", "卫视hd")):
+            elif "卫视" in k:
                 stations["卫视"].append(data)
             else:
                 m = province_pat.search(k)
@@ -228,6 +229,7 @@ class StationManager(GObject.GObject):
             for k, data in channel_list_grouped.items():
                 station = self.import_channel_list(k, data)
                 self.add_station(station)
+            self.emit("load-channel-done")
             self.log("Loaded channels from {}".format(fname))
         except (IOError, ValueError) as e:
             log.warn("File: {}\n  {}".format(fname, e))
@@ -365,6 +367,8 @@ class AppWindow(Gtk.ApplicationWindow):
         """delay load"""
         self.station_man = StationManager(self, self.test_channel_path)
         self.station_man.connect("added", self.on_station_added)
+        self.station_man.connect("load-channel-done",
+                self.on_station_load_done)
         self.station_man.load_channels()
         self.combobox_station.set_active(0)
         self.install_actions()
@@ -587,9 +591,15 @@ class AppWindow(Gtk.ApplicationWindow):
         if cbox.get_active_text() == name:
             cbox.emit("changed")
 
-    def on_combobox_station_changed(self, cbox):
+    def reload_current_station(self):
         if self.current_station is not None:
             self.fill_channel_tree(self.current_station.keys())
+
+    def on_station_load_done(self, station_man):
+        self.reload_current_station()
+
+    def on_combobox_station_changed(self, cbox):
+        self.reload_current_station()
 
     def fill_channel_tree(self, channel_names):
         model = self.tree_channel.get_model()
@@ -600,11 +610,16 @@ class AppWindow(Gtk.ApplicationWindow):
         self.tree_channel.freeze_child_notify()
         model.clear()
         for cid in channel_names:
-            model.append([cid,])
+            model.append([cid, ])
         self.tree_channel.thaw_child_notify()
 
         # reset cursor
-        if path and chname == model[path][COL_CH_NAME]:
+        try:
+            miter = model.get_iter(path)
+        except (ValueError, TypeError):
+            miter = None
+
+        if (miter and chname == model[miter][COL_CH_NAME]):
             self.tree_channel.set_cursor(path, None, False)
         else:
             path = "0"
