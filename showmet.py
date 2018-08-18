@@ -31,7 +31,7 @@ APPID = APPNAME_FULL.replace("-", "_")
 APPNAME = APPID.lower()
 APPID_FULL = "{}.{}.{}".format("org", "mozbugbox", APPID)
 
-NATIVE=sys.getfilesystemencoding()
+NATIVE = sys.getfilesystemencoding()
 CACHE_NAME = "{}-list.js".format(APPNAME)
 USER_CHAN_NAME = "{}-user-list.tvlist".format(APPNAME)
 CACHE_LIFE = 24 * 60 * 60
@@ -339,7 +339,7 @@ class Logger(Gtk.ScrolledWindow):
 
         # limit textbuffer size to maxlen
         line_count = tbuf.get_line_count()
-        if  line_count >= self.maxlen:
+        if line_count >= self.maxlen:
             iter_start = tbuf.get_start_iter()
             iter_cut = tbuf.get_iter_at_line(line_count - self.maxlen + 1)
             tbuf.delete(iter_start, iter_cut)
@@ -513,10 +513,12 @@ class AppWindow(Gtk.ApplicationWindow):
         self.current_station.current_channel = v
 
     def on_move_down(self, action, param):
+        self.tree_channel.grab_focus()
         self.tree_channel.emit("move-cursor",
                 Gtk.MovementStep.DISPLAY_LINES, 1)
 
     def on_move_up(self, action, param):
+        self.tree_channel.grab_focus()
         self.tree_channel.emit("move-cursor",
                 Gtk.MovementStep.DISPLAY_LINES, -1)
 
