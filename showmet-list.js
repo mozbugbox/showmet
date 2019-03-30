@@ -1,6 +1,6 @@
 watchlist_data = [
   [
-    "20180818.tv",
+    "20190330.tv",
     ""
   ],
   [
@@ -1090,5 +1090,97 @@ watchlist_data = [
   [
     "CCTV-NEWS",
     "http://223.110.241.204:6610/gitv/live1/G_CCTV-NEWS/G_CCTV-NEWS/"
+  ],
+  [
+    "CCTV-01",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv1_1/index.m3u8"
+  ],
+  [
+    "CCTV-02",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv2_1/index.m3u8"
+  ],
+  [
+    "CCTV-03",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv3_1/index.m3u8"
+  ],
+  [
+    "CCTV-04",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv4_1/index.m3u8"
+  ],
+  [
+    "CCTV-05",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv5_1/index.m3u8"
+  ],
+  [
+    "CCTV-05+",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv5plus_1/index.m3u8"
+  ],
+  [
+    "CCTV-06",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv6_1/index.m3u8"
+  ],
+  [
+    "CCTV-07",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv7_1/index.m3u8"
+  ],
+  [
+    "CCTV-08",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv8_1/index.m3u8"
+  ],
+  [
+    "CCTV-09",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv9_1/index.m3u8"
+  ],
+  [
+    "CCTV-10",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv10_1/index.m3u8"
+  ],
+  [
+    "CCTV-11",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv11_1/index.m3u8"
+  ],
+  [
+    "CCTV-12",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv12_1/index.m3u8"
+  ],
+  [
+    "CCTV-13",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv13_1/index.m3u8"
+  ],
+  [
+    "CCTV-14",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv14_1/index.m3u8"
+  ],
+  [
+    "CCTV-15",
+    "http://cctvalih5c.v.myalicdn.com/live/cctv15_1/index.m3u8"
+  ],
+  [
+    "CCTV-05",
+    "http://223.110.241.204:6610/cntv/live1/cctv-5/cctv-5"
+  ],
+  [
+    "CCTV-05+",
+    "http://223.110.241.204:6610/cntv/live1/hdcctv05plus/hdcctv05plus"
+  ],
+  [
+    "CCTV-05",
+    "http://223.110.245.165/ott.js.chinamobile.com/PLTV/3/224/3221227401/index.m3u8"
+  ],
+  [
+    "CCTV-05",
+    "http://223.110.242.130:6610/gitv/live1/G_CCTV-5-HQ/1.m3u8"
+  ],
+  [
+    "CCTV-05",
+    "http://223.110.241.204:6610/gitv/live1/G_CCTV-5-CQ/G_CCTV-5-CQ"
+  ],
+  [
+    "CCTV-05",
+    "http://ott.fj.chinamobile.com/PLTV/88888888/224/3221226560/index.m3u8"
+  ],
+  [
+    "CCTV-05",
+    "http://223.110.242.130:6610/cntv/live1/HD-2500k-1080P-cctv5/HD-2500k-1080P-cctv5"
   ]
 ];
