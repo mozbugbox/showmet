@@ -463,8 +463,22 @@ class AppWindow(Gtk.ApplicationWindow):
         self.button_player_start_stop = button_player_start_stop
         return hb
 
+    def do_action(self, action_name, param=None, state=None):
+        """@param, @state: in GVariant Text Format:
+            https://developer.gnome.org/glib/stable/gvariant-text.html
+        """
+        action = self.lookup_action(action_name.replace("_", "-"))
+        if state is None:
+            if param is not None:
+                param = GLib.Variant.parse(None, param, None, None)
+            action.activate(param)
+        else:
+            state = GLib.Variant.parse(None, state, None, None)
+            action.change_state(state)
+
     def install_actions(self):
-        actions = ["move-down", "move-up", "station-up", "station-down"]
+        actions = ["move-down", "move-up", "station-up", "station-down",
+                "play-cursor", "skim-next-channel"]
         for a_name in actions:
             action = Gio.SimpleAction.new(a_name, None)
             method = f'on_{a_name.replace("-", "_")}'
@@ -478,6 +492,8 @@ class AppWindow(Gtk.ApplicationWindow):
                 ["win.move-up", ["k", "b"]],
                 ["win.station-up", ["<Control>Up"]],
                 ["win.station-down", ["<Control>Down"]],
+                ["win.play-cursor", ["space"]],
+                ["win.skim-next-channel", ["s"]],
                 ["app.player-start-stop", ["<Control>s"]],
                 ["app.play-next-source", ["<Control>Right"]],
                 ["app.refresh-channel", ["<Control>r"]],
@@ -522,6 +538,15 @@ class AppWindow(Gtk.ApplicationWindow):
         self.tree_channel.emit("move-cursor",
                 Gtk.MovementStep.DISPLAY_LINES, -1)
 
+    def on_play_cursor(self, action, param):
+        path, col = self.tree_channel.get_cursor()
+        if path:
+            self.play_tree_path(path)
+
+    def on_skim_next_channel(self, action, param):
+        self.do_action("move-down")
+        self.do_action("play-cursor")
+
     def on_station_down(self, action, param):
         cbox = self.combobox_station
         if cbox.props.active < len(cbox.props.model) - 1:
@@ -554,9 +579,13 @@ class AppWindow(Gtk.ApplicationWindow):
     def on_tree_row_activated(self, tree, path, col):
         if path is None:
             return
+        self.play_tree_path(path)
 
+    def play_tree_path(self, path):
         ch = self.channel_at(path)
         self.current_channel = ch
+
+
         cbox = self.combobox_source
         cbox.handler_block(cbox.changed_hid)
         cbox.remove_all()
