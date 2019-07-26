@@ -1,6 +1,6 @@
 watchlist_data = [
   [
-    "20190330.tv",
+    "20190726.tv",
     ""
   ],
   [
@@ -1182,5 +1182,29 @@ watchlist_data = [
   [
     "CCTV-05",
     "http://223.110.242.130:6610/cntv/live1/HD-2500k-1080P-cctv5/HD-2500k-1080P-cctv5"
+  ],
+  [
+    "CCTV-05",
+    "http://183.207.248.71/cntv/live1/HD-2500k-1080P-cctv5/HD-2500k-1080P-cctv5"
+  ],
+  [
+    "CCTV-05",
+    "http://223.110.245.170/PLTV/3/224/3221227166/index.m3u8"
+  ],
+  [
+    "CCTV-05",
+    "http://223.110.245.139:80/PLTV/4/224/3221227298/index.m3u8"
+  ],
+  [
+    "CCTV-05",
+    "http://223.110.243.172/PLTV/3/224/3221227166/index.m3u8"
+  ],
+  [
+    "CCTV-05+",
+    "http://223.110.243.172/PLTV/3/224/3221225604/index.m3u8"
+  ],
+  [
+    "CCTV-05+",
+    "http://39.134.65.2:80/wh7f454c46tw1753176804_334703569/ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221225603/index.m3u8?icpid=88888888&RTS=1554599525&from=1&hms_devid=11"
   ]
 ];
